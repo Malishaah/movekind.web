@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Tailwind v4 plugin-syntax */
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+
+
+/* Google Fonts (om du inte använder next/font) */
+@import url("https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;600&family=Source+Code+Pro:wght@400;600&display=swap");
+
+/* Färg- och font-variabler */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* dessa används av @theme inline nedan */
+  --font-geist-sans: "Geist Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-geist-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New";
+}
+
+/* Mörkt läge via media (default i v4). Om du vill styra med .dark-klass, se not nedan. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+/* Knyt Tailwind-nycklar till dina CSS-variabler */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Bas-styles */
+@layer base {
+
+  html,
+  body,
+  #__next {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-geist-sans);
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* (valfritt) lite prose-tuning */
+.prose {
+  max-width: none;
+}
