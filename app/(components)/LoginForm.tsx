@@ -1,8 +1,12 @@
 'use client';
+
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiPost } from '@/app/lib/api';
 
 export default function LoginForm() {
+  const router = useRouter();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -12,12 +16,21 @@ export default function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
+
     try {
       const res = await apiPost('/api/auth/login', {
         UsernameOrEmail: username,
         Password: password,
-        RememberMe: true
+        RememberMe: true,
       });
+
+      // uppdatera header-menyn direkt
+      window.dispatchEvent(new Event('auth-changed'));
+
+      // redirect home + revalidate server stuff
+      router.replace('/');
+      router.refresh();
+
       setMsg(`Logged in as ${res?.username ?? username}`);
     } catch (err: any) {
       setMsg(err?.message || 'Login failed');

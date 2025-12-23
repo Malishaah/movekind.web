@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { absoluteMedia } from "@/app/lib/site";
 import { Menu, X } from "lucide-react";
+import { apiGet } from "@/app/lib/api";
 
 type UmbracoLink = {
   url: string | null;
@@ -37,6 +38,8 @@ function resolveLink(l: UmbracoLink) {
   };
 }
 
+type Resolved = ReturnType<typeof resolveLink>;
+
 export default function Header({
   logoUrl,
   siteName = "MoveKind",
@@ -49,26 +52,60 @@ export default function Header({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const items = useMemo(
-    () => (menu ?? []).map(resolveLink),
-    [menu]
-  );
+  // auth status
+  const [auth, setAuth] = useState<"loading" | "in" | "out">("loading");
 
-  // helper for active link styling
+useEffect(() => {
+  let alive = true;
+
+  const checkAuth = async () => {
+    try {
+      await apiGet("/api/members/me");
+      if (alive) setAuth("in");
+    } catch {
+      if (alive) setAuth("out");
+    }
+  };
+
+  checkAuth();
+
+  const onAuthChanged = () => checkAuth();
+  window.addEventListener("auth-changed", onAuthChanged);
+
+  return () => {
+    alive = false;
+    window.removeEventListener("auth-changed", onAuthChanged);
+  };
+}, []);
+
+
+const items = useMemo<Resolved[]>(() => {
+  const base = (menu ?? []).map(resolveLink);
+
+  const loggedInLinks: Resolved[] = [
+    ...base,
+    { href: "/profile", external: false, target: undefined, labelFallback: "Profile" },
+  ];
+
+  const loggedOutLinks: Resolved[] = [
+    { href: "/login", external: false, target: undefined, labelFallback: "Login" },
+    { href: "/register", external: false, target: undefined, labelFallback: "Register" },
+  ];
+
+  if (auth === "in") return loggedInLinks;
+  if (auth === "out") return loggedOutLinks;
+
+  // auth === "loading" -> visa inget (minskar “flash”)
+  return [];
+}, [menu, auth]);
   const isActive = (href: string) => {
     if (!href || href === "#") return false;
-    try {
-      // only compare path (ignore query/fragment)
-      const path = href.split(/[?#]/)[0];
-      return path === pathname;
-    } catch {
-      return false;
-    }
+    const path = href.split(/[?#]/)[0];
+    return path === pathname;
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200/70 bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-zinc-800 dark:bg-zinc-950/70">
-      {/* subtle top gradient accent */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent dark:via-zinc-800" />
 
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:h-20 sm:px-6 lg:px-8">
