@@ -1,29 +1,50 @@
-export async function forwardToUmbraco(req: Request, path: string, init?: RequestInit) {
-  const base = process.env.NEXT_PUBLIC_UMBRACO_URL ?? "https://localhost:44367";
+// app/lib/umbraco.ts
+const UMBRACO_BASE_URL = process.env.UMBRACO_BASE_URL ?? "https://localhost:44367";
 
+const HOP_BY_HOP_HEADERS = [
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailers",
+  "transfer-encoding",
+  "upgrade",
+  "content-length",
+];
+
+export async function forwardToUmbraco(req: Request, path: string) {
+  const incomingUrl = new URL(req.url);
+
+  // bygg target-url och behåll querystring
+  const targetUrl = new URL(path, UMBRACO_BASE_URL);
+  targetUrl.search = incomingUrl.search;
+
+  // forwarda headers (inkl cookies)
   const headers = new Headers(req.headers);
   headers.delete("host");
 
-  const method = init?.method ?? (req as any).method ?? "GET";
-  const url = new URL(path, base).toString();
+  // läs body endast om det finns (inte GET/HEAD)
+  const method = req.method.toUpperCase();
+  const body =
+    method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
 
-  const body = method === "GET" || method === "HEAD"
-    ? undefined
-    : (init?.body ?? await req.text());
-
-  const resp = await fetch(url, {
+  const umbracoRes = await fetch(targetUrl.toString(), {
     method,
     headers,
     body,
     redirect: "manual",
   });
 
-  const respHeaders = new Headers(resp.headers);
-  const buf = await resp.arrayBuffer();
+  // kopiera headers men ta bort hop-by-hop
+  const outHeaders = new Headers(umbracoRes.headers);
+  for (const h of HOP_BY_HOP_HEADERS) outHeaders.delete(h);
 
-  return new Response(buf, {
-    status: resp.status,
-    statusText: resp.statusText,
-    headers: respHeaders,
-  });
+  // ✅ 204/205/304 får INTE ha body
+  if (umbracoRes.status === 204 || umbracoRes.status === 205 || umbracoRes.status === 304) {
+    return new Response(null, { status: umbracoRes.status, headers: outHeaders });
+  }
+
+  const resBody = await umbracoRes.arrayBuffer();
+  return new Response(resBody, { status: umbracoRes.status, headers: outHeaders });
 }
