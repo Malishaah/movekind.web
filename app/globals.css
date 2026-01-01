@@ -27,23 +27,18 @@
 :root {
   --bg: #fbf7f2;
   --ink: #1f1b16;
-  --muted: #6e655c;
-  --card: #d9d1c8;
-  --line: rgba(0, 0, 0, 0.10);
-  --accent: #6b5648;
-  --btn: #2a2521;
-  --btnText: #ffffff;
+  --muted: #5a524a;
+  /* mörkare än innan */
+  --card: rgba(255, 255, 255, 0.55);
+  --line: rgba(31, 27, 22, 0.15);
 }
 
-html.dark {
+.dark {
   --bg: #0f0f10;
-  --ink: #f4f1ed;
-  --muted: #b6ada5;
-  --card: #1a1a1c;
-  --line: rgba(255, 255, 255, 0.14);
-  --accent: #bda995;
-  --btn: #f4f1ed;
-  --btnText: #0f0f10;
+  --ink: #f5f5f6;
+  --muted: rgba(245, 245, 246, 0.78);
+  --card: rgba(255, 255, 255, 0.06);
+  --line: rgba(245, 245, 246, 0.14);
 }
 
 /* valfritt */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPut } from "@/app/lib/api";
 
@@ -16,14 +16,12 @@ type Need =
 
 type Level = "Easy" | "Medium" | "Advanced";
 
-// ✅ Matchar din backend (camelCase)
 type PersonalizationDto = {
   personalizationNeeds: Need[];
   personalizationLevel: Level | null;
   personalizationSkipped: boolean;
 };
 
-// (valfritt) tolerant om backend nån gång skickar PascalCase
 type PersonalizationDtoAny = Partial<PersonalizationDto> & {
   PersonalizationNeeds?: Need[];
   PersonalizationLevel?: Level | null;
@@ -45,13 +43,16 @@ export default function PersonalizePage() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const statusId = useId();
+  const needsGroupId = useId();
+  const levelGroupId = useId();
+
   const pageBg = "bg-[var(--bg)] text-[var(--ink)]";
   const card = "bg-[var(--card)]";
   const line = "border-[var(--line)]";
   const muted = "text-[var(--muted)]";
   const btn = "bg-[var(--btn)] text-[var(--btnText)]";
 
-  // ✅ Load saved personalization (pre-fill)
   useEffect(() => {
     let alive = true;
 
@@ -68,15 +69,12 @@ export default function PersonalizePage() {
         const incomingLevel =
           (dto.personalizationLevel ?? dto.PersonalizationLevel ?? null) as Level | null;
 
-        const safeNeeds = Array.isArray(incomingNeeds)
-          ? incomingNeeds.filter(Boolean)
-          : [];
+        const safeNeeds = Array.isArray(incomingNeeds) ? incomingNeeds.filter(Boolean) : [];
 
-        setSelectedNeeds(safeNeeds); // tom array är ok här
+        setSelectedNeeds(safeNeeds);
         setLevel(incomingLevel ?? null);
-      } catch (e: any) {
-        // ok att ignorera om endpoint saknas / ej inloggad
-        // setMsg(e?.message ?? "Could not load personalization");
+      } catch {
+        // ok
       } finally {
         if (alive) setLoading(false);
       }
@@ -120,7 +118,6 @@ export default function PersonalizePage() {
   return (
     <div className={`min-h-screen ${pageBg}`}>
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-        {/* Header / Step */}
         <div className="flex flex-col gap-4">
           <div
             className={`inline-flex w-fit items-center gap-2 rounded-full ${card} ${line} border px-4 py-2 font-serif text-base sm:text-lg ${muted}`}
@@ -140,15 +137,20 @@ export default function PersonalizePage() {
         </div>
 
         {loading ? (
-          <div className={`mt-8 text-base sm:text-lg ${muted}`}>Loading…</div>
+          <div className={`mt-8 text-base sm:text-lg ${muted}`} role="status" aria-live="polite">
+            Loading…
+          </div>
         ) : (
           <>
             {/* Needs */}
-            <section className="mt-8">
-              <h2 className="font-serif text-2xl sm:text-3xl">Choose your needs</h2>
+            <section className="mt-8" aria-labelledby={needsGroupId}>
+              <h2 id={needsGroupId} className="font-serif text-2xl sm:text-3xl">
+                Choose your needs
+              </h2>
               <p className={`mt-2 text-sm sm:text-base ${muted}`}>Select one or more:</p>
 
-              <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
+              {/* Group label helps SR */}
+              <div role="group" aria-label="Needs" className="mt-5 flex flex-wrap gap-2 sm:gap-3">
                 {needs.map((n) => {
                   const active = selectedNeeds.includes(n);
                   return (
@@ -183,19 +185,24 @@ export default function PersonalizePage() {
             </section>
 
             {/* Level */}
-            <section className="mt-10">
-              <h2 className="font-serif text-2xl sm:text-3xl">Goal level</h2>
+            <section className="mt-10" aria-labelledby={levelGroupId}>
+              <h2 id={levelGroupId} className="font-serif text-2xl sm:text-3xl">
+                Goal level
+              </h2>
               <p className={`mt-2 text-sm sm:text-base ${muted}`}>
                 Choose the intensity that feels right right now.
               </p>
 
-              <div className="mt-5 space-y-3">
+              {/* ✅ Radiogroup semantics */}
+              <div role="radiogroup" aria-label="Goal level" className="mt-5 space-y-3">
                 {(["Easy", "Medium", "Advanced"] as Level[]).map((l) => {
                   const active = level === l;
                   return (
                     <button
                       key={l}
                       type="button"
+                      role="radio"
+                      aria-checked={active}
                       onClick={() => setLevel(l)}
                       className={[
                         "w-full rounded-2xl border px-5 py-4 sm:px-6 sm:py-5 text-left transition",
@@ -228,7 +235,6 @@ export default function PersonalizePage() {
                 })}
               </div>
 
-              {/* Info box */}
               <div className={`mt-6 rounded-2xl ${card} ${line} border px-5 py-4`}>
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 grid h-8 w-8 place-items-center rounded-full ${line} border font-serif ${muted}`}>
@@ -240,9 +246,13 @@ export default function PersonalizePage() {
                 </div>
               </div>
 
-              {msg && <p className="mt-4 text-sm sm:text-base text-red-600">{msg}</p>}
+              {/* ✅ Errors announced */}
+              {msg && (
+                <p id={statusId} role="alert" className="mt-4 text-sm sm:text-base text-red-600">
+                  {msg}
+                </p>
+              )}
 
-              {/* Actions */}
               <div className="mt-8 space-y-4">
                 <button
                   type="button"
@@ -272,6 +282,13 @@ export default function PersonalizePage() {
                   Skip for now
                 </button>
               </div>
+
+              {/* ✅ Busy state announced */}
+              {busy ? (
+                <div className="sr-only" role="status" aria-live="polite">
+                  Saving…
+                </div>
+              ) : null}
             </section>
           </>
         )}

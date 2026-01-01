@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, LogOut, Bell } from "lucide-react";
@@ -11,10 +11,10 @@ type Profile = {
   name: string;
   largerText: boolean;
   highContrast: boolean;
-  lightMode: boolean; // true = light, false = dark
+  lightMode: boolean;
   captionsOnByDefault: boolean;
   remindersEnabled: boolean;
-  defaultReminderTime: string; // "HH:mm" (eller "HH:mm:ss")
+  defaultReminderTime: string;
 };
 
 function toHHMM(v: string) {
@@ -26,10 +26,7 @@ function applyUiPreferences(p: Profile | null) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
 
-  // LightMode true => INTE dark. LightMode false => dark.
   root.classList.toggle("dark", !p?.lightMode);
-
-  // valfria extra
   root.classList.toggle("mk-large-text", !!p?.largerText);
   root.classList.toggle("mk-high-contrast", !!p?.highContrast);
 }
@@ -44,6 +41,8 @@ export default function ProfilePage() {
 
   const didHydrate = useRef(false);
   const saveTimer = useRef<number | null>(null);
+
+  const statusRegionId = useId();
 
   async function load() {
     setMsg(null);
@@ -81,13 +80,11 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Apply theme instantly when toggling in UI
   useEffect(() => {
     if (!profile) return;
     applyUiPreferences(profile);
   }, [profile?.lightMode, profile?.largerText, profile?.highContrast]);
 
-  // Autosave (debounce)
   useEffect(() => {
     if (!profile) return;
     if (!didHydrate.current) return;
@@ -133,12 +130,22 @@ export default function ProfilePage() {
 
   const email = useMemo(() => profile?.email ?? "", [profile]);
 
+  const statusText =
+    status === "saving"
+      ? "Saving…"
+      : status === "saved"
+      ? "Saved"
+      : status === "error"
+      ? "Error saving"
+      : "";
+
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-xl px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={() => router.back()}
             className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Back"
@@ -151,7 +158,13 @@ export default function ProfilePage() {
         <div className="mt-4 h-px w-full bg-[var(--line)]" />
 
         {loading ? (
-          <div className="py-10 text-lg text-[var(--muted)]">Loading…</div>
+          <div
+            className="py-10 text-lg text-[var(--muted)]"
+            role="status"
+            aria-live="polite"
+          >
+            Loading…
+          </div>
         ) : !profile ? (
           <div className="py-10">
             <p className="text-lg text-[var(--muted)]">{msg ?? "Not logged in."}</p>
@@ -167,7 +180,9 @@ export default function ProfilePage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={logout}
+                  aria-label="Log out"
                   className="inline-flex items-center gap-2 rounded-full bg-[var(--btn)] px-5 py-3 font-serif text-xl text-[var(--btnText)] hover:opacity-95"
                 >
                   <LogOut className="h-5 w-5" />
@@ -179,10 +194,6 @@ export default function ProfilePage() {
             <div className="mt-6 h-px w-full bg-[var(--line)]" />
 
             <SectionTitle>Accessibility</SectionTitle>
-
-            {/* (valfritt) largerText/highContrast om du vill visa senare */}
-            {/* <SettingRow title="Larger text" checked={profile.largerText} onChange={(v)=>setProfile({...profile, largerText:v})} /> */}
-            {/* <SettingRow title="High contrast" checked={profile.highContrast} onChange={(v)=>setProfile({...profile, highContrast:v})} /> */}
 
             <SettingRow
               title="Light mode"
@@ -237,14 +248,14 @@ export default function ProfilePage() {
               Review onboarding
             </Link>
 
-            <div className="mt-6 text-sm text-[var(--muted)]">
-              {status === "saving"
-                ? "Saving…"
-                : status === "saved"
-                ? "Saved"
-                : status === "error"
-                ? "Error saving"
-                : ""}
+            {/* ✅ Live region for save/status/messages */}
+            <div
+              id={statusRegionId}
+              className="mt-6 text-sm text-[var(--muted)]"
+              role={status === "error" ? "alert" : "status"}
+              aria-live={status === "error" ? "assertive" : "polite"}
+            >
+              {statusText}
               {msg ? ` · ${msg}` : ""}
             </div>
           </>
@@ -271,29 +282,42 @@ function SettingRow({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const titleId = useId();
+
   return (
     <div className="mt-7 flex items-start justify-between gap-6">
       <div className="flex items-start gap-3">
         {icon ? <div className="mt-1">{icon}</div> : null}
         <div>
-          <div className="font-serif text-2xl">{title}</div>
+          <div id={titleId} className="font-serif text-2xl">
+            {title}
+          </div>
           {description ? (
             <div className="mt-2 text-lg text-[var(--muted)]">{description}</div>
           ) : null}
         </div>
       </div>
 
-      <Switch checked={checked} onChange={onChange} />
+      <Switch checked={checked} onChange={onChange} ariaLabelledby={titleId} />
     </div>
   );
 }
 
-function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Switch({
+  checked,
+  onChange,
+  ariaLabelledby,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  ariaLabelledby: string;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-labelledby={ariaLabelledby}
       onClick={() => onChange(!checked)}
       className={[
         "relative h-10 w-16 rounded-full border transition",

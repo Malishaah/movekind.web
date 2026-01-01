@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 
 type ApiScheduleItem = {
   key: string;
   startTime: string; // ISO
-  dateISO: string;   // YYYY-MM-DD
-  time: string;      // HH:mm
+  dateISO: string; // YYYY-MM-DD
+  time: string; // HH:mm
   title?: string | null;
   workoutUdi?: string | null;
 };
 
 type Session = {
-  id: string;       // key
+  id: string; // key
   dateISO: string;
   time: string;
   title: string;
@@ -92,6 +99,16 @@ function toUdiFromGuid(guidWithHyphens: string) {
   return `umb://document/${g.replace(/-/g, "")}`;
 }
 
+function getFocusable(container: HTMLElement | null) {
+  if (!container) return [];
+  const nodes = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])'
+    )
+  );
+  return nodes.filter((el) => !el.hasAttribute("disabled") && !el.getAttribute("aria-hidden"));
+}
+
 export default function MySchedulePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,10 +119,12 @@ export default function MySchedulePage() {
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [pageErr, setPageErr] = useState<string | null>(null);
 
   const [openAdd, setOpenAdd] = useState(false);
   const [busyAdd, setBusyAdd] = useState(false);
+  const [modalErr, setModalErr] = useState<string | null>(null);
+
   const [titleInput, setTitleInput] = useState("Session");
   const [timeInput, setTimeInput] = useState("17:00");
 
@@ -113,6 +132,20 @@ export default function MySchedulePage() {
   const [workoutsErr, setWorkoutsErr] = useState<string | null>(null);
   const [selectedWorkoutUdi, setSelectedWorkoutUdi] = useState<string>("");
   const [manualWorkoutUdi, setManualWorkoutUdi] = useState<string>("");
+
+  // a11y ids
+  const dialogTitleId = useId();
+  const dialogDescId = useId();
+  const dialogErrId = useId();
+  const titleId = useId();
+  const timeId = useId();
+  const workoutSelectId = useId();
+  const workoutManualId = useId();
+
+  // a11y refs
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const titleFieldRef = useRef<HTMLInputElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
 
   const weekStart = useMemo(() => {
     const now = new Date();
@@ -145,6 +178,7 @@ export default function MySchedulePage() {
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [sessions, selectedDay.dateISO]);
 
+  // load workouts list for dropdown
   useEffect(() => {
     let alive = true;
 
@@ -176,12 +210,13 @@ export default function MySchedulePage() {
     };
   }, []);
 
+  // load schedule for the current week
   useEffect(() => {
     let alive = true;
 
     (async () => {
       setLoading(true);
-      setErr(null);
+      setPageErr(null);
       try {
         const from = formatISO(weekStart);
         const to = formatISO(weekEnd);
@@ -200,7 +235,7 @@ export default function MySchedulePage() {
 
         if (alive) setSessions(mapped);
       } catch (e: any) {
-        if (alive) setErr(e?.message ?? "Failed to load schedule");
+        if (alive) setPageErr(e?.message ?? "Failed to load schedule");
       } finally {
         if (alive) setLoading(false);
       }
@@ -211,15 +246,25 @@ export default function MySchedulePage() {
     };
   }, [weekStart, weekEnd]);
 
-  function openAddModal() {
-    setErr(null);
+  function closeAddModal() {
+    setOpenAdd(false);
+    setModalErr(null);
+    // restore focus to opener (WCAG nice-to-have)
+    openerRef.current?.focus?.();
+    openerRef.current = null;
+  }
+
+  function openAddModal(opener?: HTMLElement | null) {
+    setModalErr(null);
     setTitleInput("Session");
     setTimeInput("17:00");
     setSelectedWorkoutUdi("");
     setManualWorkoutUdi("");
+    openerRef.current = opener ?? (document.activeElement as HTMLElement | null);
     setOpenAdd(true);
   }
 
+  // open from query (?add=1...)
   useEffect(() => {
     const add = searchParams.get("add");
     if (add !== "1") return;
@@ -235,19 +280,61 @@ export default function MySchedulePage() {
       setManualWorkoutUdi(presetWorkoutUdi);
     }
 
+    openerRef.current = null;
     setOpenAdd(true);
     router.replace("/schedule");
   }, [searchParams, router]);
 
+  // a11y: focus + Esc + simple focus trap while dialog open
+  useEffect(() => {
+    if (!openAdd) return;
+
+    // focus first field
+    setTimeout(() => titleFieldRef.current?.focus(), 0);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busyAdd) {
+        e.preventDefault();
+        closeAddModal();
+        return;
+      }
+
+      if (e.key === "Tab") {
+        const focusables = getFocusable(dialogRef.current);
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+
+        if (e.shiftKey) {
+          if (!active || active === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openAdd, busyAdd]);
+
   async function createSession() {
-    setErr(null);
+    setModalErr(null);
 
     if (!titleInput.trim()) {
-      setErr("Please enter a session name.");
+      setModalErr("Please enter a session name.");
       return;
     }
     if (!isTimeHHmm(timeInput)) {
-      setErr("Please choose a valid time (HH:mm).");
+      setModalErr("Please choose a valid time (HH:mm).");
       return;
     }
 
@@ -277,26 +364,26 @@ export default function MySchedulePage() {
       setToast(`Added to ${selectedDay.key} ${created.time}`);
       window.setTimeout(() => setToast(null), 2200);
     } catch (e: any) {
-      setErr(e?.message ?? "Failed to add session");
+      setModalErr(e?.message ?? "Failed to add session");
     } finally {
       setBusyAdd(false);
     }
   }
 
   async function removeSession(id: string) {
-    setErr(null);
+    setPageErr(null);
     try {
       await apiDelete(`/api/schedule/${encodeURIComponent(id)}`);
       setSessions((prev) => prev.filter((x) => x.id !== id));
       setToast("Removed");
       window.setTimeout(() => setToast(null), 1600);
     } catch (e: any) {
-      setErr(e?.message ?? "Failed to remove session");
+      setPageErr(e?.message ?? "Failed to remove session");
     }
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+    <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-xl px-4 py-5 sm:px-6 sm:py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -311,9 +398,13 @@ export default function MySchedulePage() {
         </div>
 
         <div className="mt-4 h-px w-full bg-[var(--line)]" />
+           <h2 className="font-serif text-2xl sm:text-2xl">Focus, schedule, and move.</h2>
 
         {/* Week header */}
-        <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 sm:p-5">
+        <section
+          aria-label="Week overview"
+          className="mt-6 rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 sm:p-5"
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-serif text-2xl sm:text-3xl">Week {weekNumber}</div>
@@ -340,12 +431,16 @@ export default function MySchedulePage() {
               </button>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Error / Loading */}
-        {err && (
-          <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm sm:text-base text-red-800">
-            {err}
+        {pageErr && (
+          <div
+            className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm sm:text-base text-red-800"
+            role="alert"
+            aria-live="polite"
+          >
+            {pageErr}
           </div>
         )}
         {loading && (
@@ -355,7 +450,7 @@ export default function MySchedulePage() {
         )}
 
         {/* Day chips */}
-        <div className="mt-5">
+        <section className="mt-5" aria-label="Choose a day">
           <div className="mb-2 text-sm text-[var(--muted)]">Pick a day</div>
 
           <div
@@ -386,26 +481,28 @@ export default function MySchedulePage() {
               );
             })}
           </div>
-        </div>
+        </section>
 
         {/* Selected day title */}
-        <div className="mt-6 flex items-end justify-between gap-3">
-          <div>
-            <div className="font-serif text-2xl sm:text-3xl">{selectedDay.key}</div>
-            <div className="text-sm sm:text-base text-[var(--muted)]">{selectedDay.dateISO}</div>
-          </div>
+        <section className="mt-6" aria-label="Selected day">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="font-serif text-2xl sm:text-3xl">{selectedDay.key}</div>
+              <div className="text-sm sm:text-base text-[var(--muted)]">{selectedDay.dateISO}</div>
+            </div>
 
-          <button
-            onClick={openAddModal}
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--btn)] px-4 py-3 font-serif text-lg text-[var(--btnText)] hover:opacity-95"
-          >
-            <Plus className="h-5 w-5" />
-            Add
-          </button>
-        </div>
+            <button
+              onClick={(e) => openAddModal(e.currentTarget)}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--btn)] px-4 py-3 font-serif text-lg text-[var(--btnText)] hover:opacity-95"
+            >
+              <Plus className="h-5 w-5" />
+              Add
+            </button>
+          </div>
+        </section>
 
         {/* Sessions panel */}
-        <div className="mt-5 rounded-2xl bg-[var(--card)] p-4 sm:p-6">
+        <section className="mt-5 rounded-2xl bg-[var(--card)] p-4 sm:p-6" aria-label="Sessions">
           {sessionsForSelectedDay.length === 0 ? (
             <>
               <div className="text-center font-serif text-2xl sm:text-3xl">
@@ -413,7 +510,7 @@ export default function MySchedulePage() {
               </div>
 
               <button
-                onClick={openAddModal}
+                onClick={(e) => openAddModal(e.currentTarget)}
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-6 py-4 font-serif text-xl hover:opacity-95"
               >
                 <Plus className="h-6 w-6" />
@@ -453,7 +550,7 @@ export default function MySchedulePage() {
               ))}
 
               <button
-                onClick={openAddModal}
+                onClick={(e) => openAddModal(e.currentTarget)}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-6 py-4 font-serif text-xl hover:opacity-95"
               >
                 <Plus className="h-6 w-6" />
@@ -461,14 +558,18 @@ export default function MySchedulePage() {
               </button>
             </div>
           )}
-        </div>
+        </section>
 
         <div className="h-10" />
       </div>
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2">
+        <div
+          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2"
+          role="status"
+          aria-live="polite"
+        >
           <div className="rounded-full bg-[#9CFF7A] px-6 py-4 font-serif text-xl shadow-sm">
             {toast}
           </div>
@@ -477,25 +578,36 @@ export default function MySchedulePage() {
 
       {/* Add session modal */}
       {openAdd && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50" aria-hidden={busyAdd ? "false" : undefined}>
           <div
             className="absolute inset-0 bg-black/40"
-            onClick={() => !busyAdd && setOpenAdd(false)}
+            onClick={() => !busyAdd && closeAddModal()}
+            aria-hidden="true"
           />
 
-          {/* bottom sheet-ish */}
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-[var(--bg)] text-[var(--ink)] p-5 shadow-lg sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(92vw,560px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:p-6">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            aria-describedby={`${dialogDescId}${modalErr ? ` ${dialogErrId}` : ""}`}
+            className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-[var(--bg)] text-[var(--ink)] p-5 shadow-lg sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(92vw,560px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="font-serif text-2xl sm:text-3xl">Add session</div>
-                <div className="mt-1 text-sm sm:text-base text-[var(--muted)]">
+                <div id={dialogTitleId} className="font-serif text-2xl sm:text-3xl">
+                  Add session
+                </div>
+                <div id={dialogDescId} className="mt-1 text-sm sm:text-base text-[var(--muted)]">
                   {selectedDay.dateISO} ({selectedDay.key})
                 </div>
               </div>
+
               <button
                 type="button"
                 className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
-                onClick={() => !busyAdd && setOpenAdd(false)}
+                onClick={() => !busyAdd && closeAddModal()}
                 aria-label="Close"
               >
                 <X className="h-6 w-6" />
@@ -503,42 +615,55 @@ export default function MySchedulePage() {
             </div>
 
             <div className="mt-5 space-y-4">
-              <label className="block">
-                <div className="font-serif text-lg sm:text-xl">Session name</div>
+              <div>
+                <label htmlFor={titleId} className="font-serif text-lg sm:text-xl">
+                  Session name
+                </label>
                 <input
+                  ref={titleFieldRef}
+                  id={titleId}
                   value={titleInput}
                   onChange={(e) => setTitleInput(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
                   placeholder="e.g. Morning Mobility"
                 />
-              </label>
+              </div>
 
-              <label className="block">
-                <div className="font-serif text-lg sm:text-xl">Time</div>
+              <div>
+                <label htmlFor={timeId} className="font-serif text-lg sm:text-xl">
+                  Time
+                </label>
                 <input
+                  id={timeId}
                   type="time"
                   value={timeInput}
                   onChange={(e) => setTimeInput(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
                 />
-              </label>
+              </div>
 
               <div>
                 <div className="font-serif text-lg sm:text-xl">Workout</div>
 
                 {workouts.length > 0 ? (
-                  <select
-                    value={selectedWorkoutUdi}
-                    onChange={(e) => setSelectedWorkoutUdi(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
-                  >
-                    <option value="">No workout (optional)</option>
-                    {workouts.map((w) => (
-                      <option key={w.udi} value={w.udi}>
-                        {w.title}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="mt-2">
+                    <label htmlFor={workoutSelectId} className="sr-only">
+                      Choose workout (optional)
+                    </label>
+                    <select
+                      id={workoutSelectId}
+                      value={selectedWorkoutUdi}
+                      onChange={(e) => setSelectedWorkoutUdi(e.target.value)}
+                      className="w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                    >
+                      <option value="">No workout (optional)</option>
+                      {workouts.map((w) => (
+                        <option key={w.udi} value={w.udi}>
+                          {w.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 ) : (
                   <>
                     {workoutsErr && (
@@ -546,23 +671,39 @@ export default function MySchedulePage() {
                         {workoutsErr}
                       </div>
                     )}
-                    <input
-                      value={manualWorkoutUdi}
-                      onChange={(e) => setManualWorkoutUdi(e.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
-                      placeholder="Paste workout UDI (umb://document/...)"
-                    />
+
+                    <div className="mt-2">
+                      <label htmlFor={workoutManualId} className="sr-only">
+                        Paste workout UDI (optional)
+                      </label>
+                      <input
+                        id={workoutManualId}
+                        value={manualWorkoutUdi}
+                        onChange={(e) => setManualWorkoutUdi(e.target.value)}
+                        className="w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                        placeholder="Paste workout UDI (umb://document/...)"
+                      />
+                    </div>
                   </>
                 )}
               </div>
             </div>
 
-            {err && <div className="mt-4 text-sm sm:text-base text-red-700">{err}</div>}
+            {modalErr && (
+              <div
+                id={dialogErrId}
+                className="mt-4 text-sm sm:text-base text-red-700"
+                role="alert"
+                aria-live="polite"
+              >
+                {modalErr}
+              </div>
+            )}
 
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
-                onClick={() => setOpenAdd(false)}
+                onClick={() => closeAddModal()}
                 disabled={busyAdd}
                 className="w-1/3 rounded-full border border-[var(--line)] bg-transparent px-4 py-4 font-serif text-lg hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-60"
               >
@@ -574,6 +715,7 @@ export default function MySchedulePage() {
                 onClick={createSession}
                 disabled={busyAdd}
                 className="w-2/3 rounded-full bg-[var(--btn)] px-5 py-4 font-serif text-lg text-[var(--btnText)] hover:opacity-95 disabled:opacity-60"
+                aria-busy={busyAdd}
               >
                 {busyAdd ? "Saving…" : "Save session"}
               </button>
@@ -583,6 +725,6 @@ export default function MySchedulePage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

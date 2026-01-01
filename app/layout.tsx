@@ -3,6 +3,8 @@ import Footer from "@/app/(components)/Footer";
 import { getHome } from "@/app/lib/site";
 import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
+import type { Metadata } from "next";
+
 
 import { Inria_Serif } from "next/font/google";
 
@@ -13,7 +15,13 @@ const inriaSerif = Inria_Serif({
   variable: "--font-serif",
   display: "swap",
 });
-
+export const metadata: Metadata = {
+  title: {
+    default: "MoveKind",
+    template: "%s – MoveKind",
+  },
+  description: "MoveKind helps you find gentle sessions that fit your body and space.",
+};
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const home = await getHome();
   const logo = home?.properties?.logoUrl?.[0]?.url ?? null;

@@ -136,7 +136,7 @@ export default function Header({
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:h-20 sm:px-6 lg:px-8">
         {/* brand */}
         <Link
-          href="/"
+          href=""
           className="group inline-flex items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
           aria-label={`${siteName} home`}
         >

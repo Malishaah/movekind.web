@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useId, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "@/app/lib/api";
 import { ArrowLeft, Search, ChevronDown, Heart, Play } from "lucide-react";
 
@@ -56,6 +56,9 @@ export default function WorkoutsPage() {
   const [level, setLevel] = useState<LevelUI>("Any");
   const [position, setPosition] = useState<PositionUI>("Any");
   const [floorFriendlyOnly, setFloorFriendlyOnly] = useState(false);
+
+  const searchId = useId();
+  const statusId = useId();
 
   async function loadWorkouts() {
     setMsg(null);
@@ -164,10 +167,9 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+    <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3">
+        <header className="flex items-center gap-3">
           <Link
             href="/"
             className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
@@ -176,22 +178,28 @@ export default function WorkoutsPage() {
             <ArrowLeft className="h-6 w-6" />
           </Link>
           <h1 className="font-serif text-3xl sm:text-4xl">Search sessions</h1>
-        </div>
+        </header>
 
         {/* Search input */}
-        <div className="mt-5 flex items-center gap-3 rounded-full bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)] px-5 py-4 sm:mt-6">
-          <Search className="h-6 w-6 text-[var(--muted)]" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for sessions (e.g., knees, seated)"
-            className="w-full bg-transparent text-base text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none sm:text-lg"
-          />
-        </div>
+        <section className="mt-5 sm:mt-6" aria-label="Search">
+          <div className="flex items-center gap-3 rounded-full bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)] px-5 py-4">
+            <Search className="h-6 w-6 text-[var(--muted)]" aria-hidden="true" />
+            <label htmlFor={searchId} className="sr-only">
+              Search for sessions
+            </label>
+            <input
+              id={searchId}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search for sessions (e.g., knees, seated)"
+              className="w-full bg-transparent text-base text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none sm:text-lg"
+            />
+          </div>
+        </section>
 
         {/* Filters card */}
-        <div className="mt-6 rounded-2xl bg-[var(--card)] p-4 sm:mt-7 sm:p-6">
-          <div className="font-serif text-3xl sm:text-4xl">Filters</div>
+        <section className="mt-6 rounded-2xl bg-[var(--card)] p-4 sm:mt-7 sm:p-6" aria-label="Filters">
+          <h2 className="font-serif text-3xl sm:text-4xl">Filters</h2>
 
           <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 md:grid-cols-3">
             <SelectLike label="Body part" value={bodyPart} options={bodyPartOptions} onChange={setBodyPart} />
@@ -213,77 +221,92 @@ export default function WorkoutsPage() {
             <div className="font-serif text-2xl sm:text-3xl">Floor-friendly</div>
             <Toggle checked={floorFriendlyOnly} onChange={setFloorFriendlyOnly} />
           </div>
-        </div>
+        </section>
 
         {/* Results */}
-        <div className="mt-8 flex items-baseline justify-between sm:mt-10">
-          <div className="font-serif text-3xl sm:text-4xl">Results ({filtered.length})</div>
-        </div>
-
-        {msg && (
-          <div className="mt-4 rounded-xl bg-lime-300/70 px-5 py-3 font-serif text-xl sm:text-2xl text-black">
-            {msg}
+        <section className="mt-8 sm:mt-10" aria-label="Results">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-serif text-3xl sm:text-4xl">Results ({filtered.length})</h2>
           </div>
-        )}
 
-        <div className="mt-6 space-y-6">
-          {filtered.map((w) => {
-            const href = `/workouts/${w.slug}`;
-            const fav = isFav(w.id);
+          {/* Status message for screen readers */}
+          <p id={statusId} className="sr-only" aria-live="polite">
+            {msg ? msg : `Showing ${filtered.length} results`}
+          </p>
 
-            return (
-              <article
-                key={w.id}
-                className="overflow-hidden rounded-3xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)]"
-              >
-                <div className="relative">
-                  <Link href={href} className="block" aria-label={`Open ${w.title}`}>
-                    <div className="relative aspect-[16/10] w-full bg-black/5 dark:bg-white/5 sm:aspect-auto sm:h-28">
-                      {w.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={w.imageUrl}
-                          alt={w.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : null}
+          {msg && (
+            <div className="mt-4 rounded-xl bg-lime-300/70 px-5 py-3 font-serif text-xl sm:text-2xl text-black">
+              {msg}
+            </div>
+          )}
+<div className="mt-6 space-y-6">
+  {filtered.map((w) => {
+    const href = `/workouts/${w.slug}`;
+    const fav = isFav(w.id);
 
-                      <div className="absolute inset-0 grid place-items-center">
-                        <div className="grid h-14 w-14 place-items-center rounded-full bg-black/40 backdrop-blur-sm sm:h-12 sm:w-12">
-                          <Play className="h-7 w-7 text-white sm:h-6 sm:w-6" />
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+    return (
+      <article
+        key={w.id}
+        className="overflow-hidden rounded-3xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)]"
+      >
+        <div className="relative">
+          {/* EN länk runt bild + text */}
+          <Link
+            href={href}
+            className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+            aria-label={`Open ${w.title}`}
+          >
+            <div className="relative aspect-[16/10] w-full bg-black/5 dark:bg-white/5 sm:aspect-auto sm:h-28">
+              {w.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={w.imageUrl}
+                  alt={w.title}
+                  className="h-full w-full object-cover transition group-hover:scale-[1.01]"
+                  loading="lazy"
+                />
+              ) : null}
 
-                  <button
-                    onClick={() => toggle(w.id)}
-                    className="absolute right-3 top-3 rounded-full bg-white/70 p-2 backdrop-blur-sm hover:bg-white/85 dark:bg-white/10 dark:hover:bg-white/15"
-                    aria-label={fav ? "Unfavorite" : "Favorite"}
-                    title={fav ? "Remove from favorites" : "Add to favorites"}
-                  >
-                    <Heart className="h-6 w-6 sm:h-8 sm:w-8" fill={fav ? "currentColor" : "none"} />
-                  </button>
+              <div className="pointer-events-none absolute inset-0 grid place-items-center" aria-hidden="true">
+                <div className="grid h-14 w-14 place-items-center rounded-full bg-black/40 backdrop-blur-sm sm:h-12 sm:w-12">
+                  <Play className="h-7 w-7 text-white sm:h-6 sm:w-6" />
                 </div>
+              </div>
+            </div>
 
-                <div className="p-5 sm:p-6">
-                  <Link href={href} className="block">
-                    <h2 className="font-serif text-2xl leading-tight sm:text-3xl">{w.title}</h2>
-                    <div className="mt-2 text-lg text-[var(--muted)] sm:text-2xl">
-                      {w.minutes} min · {w.levelText}
-                      {w.tagsText ? ` · ${w.tagsText}` : ""}
-                    </div>
-                  </Link>
-                </div>
-              </article>
-            );
-          })}
+            <div className="p-5 sm:p-6">
+              <h3 className="font-serif text-2xl leading-tight sm:text-3xl group-hover:underline">
+                {w.title}
+              </h3>
+              <div className="mt-2 text-lg text-[var(--muted)] sm:text-2xl">
+                {w.minutes} min · {w.levelText}
+                {w.tagsText ? ` · ${w.tagsText}` : ""}
+              </div>
+            </div>
+          </Link>
+
+          {/* Separat interaktiv favorit-knapp (inte inuti länken) */}
+          <button
+            type="button"
+            onClick={() => toggle(w.id)}
+            className="absolute right-3 top-3 rounded-full bg-white/70 p-2 backdrop-blur-sm hover:bg-white/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:bg-white/10 dark:hover:bg-white/15"
+            aria-label={fav ? `Remove ${w.title} from favorites` : `Add ${w.title} to favorites`}
+            aria-pressed={fav}
+            title={fav ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart className="h-6 w-6 sm:h-8 sm:w-8" fill={fav ? "currentColor" : "none"} />
+          </button>
         </div>
+      </article>
+    );
+  })}
+</div>
+
+        </section>
 
         <div className="h-10" />
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -299,16 +322,16 @@ function SelectLike({
   options: string[];
   onChange: (v: string) => void;
 }) {
-  const id = `select-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  const selectId = useId();
 
   return (
     <div className="relative">
-      <label htmlFor={id} className="sr-only">
+      <label htmlFor={selectId} className="sr-only">
         {label}
       </label>
 
       <select
-        id={id}
+        id={selectId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={[
@@ -327,29 +350,29 @@ function SelectLike({
         ))}
       </select>
 
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[var(--ink)] sm:h-7 sm:w-7" />
+      <ChevronDown
+        className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[var(--ink)] sm:h-7 sm:w-7"
+        aria-hidden="true"
+      />
     </div>
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={[
         "relative h-11 w-18 rounded-full border transition sm:h-12 sm:w-20",
         "border-[var(--accent)]",
-        checked ? "bg-[var(--accent)]" : "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
+        checked
+          ? "bg-[var(--accent)]"
+          : "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
       ].join(" ")}
-      aria-pressed={checked}
-      aria-label="Toggle floor-friendly"
+      aria-label="Filter: floor-friendly only"
     >
       <span
         className={[
