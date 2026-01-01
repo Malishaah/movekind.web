@@ -224,32 +224,48 @@ export default function HomePage() {
           <div className="mt-8 h-px w-full bg-[var(--line)]" />
 
           {/* Quick links */}
-          <section className="mt-8 sm:mt-10" aria-label="Quick links">
-            <h2 className="font-serif text-3xl sm:text-4xl">Quick links</h2>
+<section className="mt-8 sm:mt-10" aria-label="Quick links">
+  <h2 className="font-serif text-3xl sm:text-4xl">Quick links</h2>
 
-            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
-              {quickLinks.map((t) => {
-                const active = activeTag === t;
+  <div className="mt-5 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
+    {/* Alla */}
+    <button
+      type="button"
+      onClick={() => setActiveTag(null)}
+      aria-pressed={activeTag === null}
+      className={[
+        "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition",
+        activeTag === null
+          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+          : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] hover:bg-[color:rgba(255,255,255,0.75)] dark:hover:bg-[color:rgba(255,255,255,0.10)]",
+      ].join(" ")}
+    >
+      Alla
+    </button>
 
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setActiveTag(active ? null : t)}
-                    aria-pressed={active}
-                    className={[
-                      "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition",
-                      active
-                        ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                        : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] hover:bg-[color:rgba(255,255,255,0.75)] dark:hover:bg-[color:rgba(255,255,255,0.10)]",
-                    ].join(" ")}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+    {/* Befintliga taggar */}
+    {quickLinks.map((t) => {
+      const active = activeTag === t;
+      return (
+        <button
+          key={t}
+          type="button"
+          onClick={() => setActiveTag(active ? null : t)}
+          aria-pressed={active}
+          className={[
+            "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition",
+            active
+              ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+              : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] hover:bg-[color:rgba(255,255,255,0.75)] dark:hover:bg-[color:rgba(255,255,255,0.10)]",
+          ].join(" ")}
+        >
+          {t}
+        </button>
+      );
+    })}
+  </div>
+</section>
+
 
           {/* Recommended */}
           <section className="mt-10 sm:mt-14" aria-label="Recommended sessions">

@@ -311,13 +311,13 @@ export default function WorkoutDetailPage() {
                 ) : null}
 
                 {s.easierOption ? (
-                  <div className="mt-4 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
+                  <div className="mt-4 rounded-xl bg-[color:rgba(171, 150, 150, 0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
                     Easier option: <span className="text-[var(--muted)]">{s.easierOption}</span>
                   </div>
                 ) : null}
 
                 {s.harderOption ? (
-                  <div className="mt-3 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
+                  <div className="mt-3 rounded-xl bg-[color:rgba(196, 153, 153, 0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
                     Harder option: <span className="text-[var(--muted)]">{s.harderOption}</span>
                   </div>
                 ) : null}

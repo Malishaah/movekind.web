@@ -7,6 +7,7 @@ import { ArrowLeft, Search, ChevronDown, Heart, Play } from "lucide-react";
 
 type LevelUI = "Any" | "Easy" | "Medium" | "Advanced";
 type PositionUI = "Any" | "Seated" | "Standing" | "Lying";
+const ALL = "All";
 
 type Workout = {
   id: string;

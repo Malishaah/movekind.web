@@ -29,8 +29,9 @@
   --ink: #1f1b16;
   --muted: #5a524a;
   /* mörkare än innan */
-  --card: rgba(255, 255, 255, 0.55);
-  --line: rgba(31, 27, 22, 0.15);
+  --card: rgba(211, 202, 202, 0.55);
+  --line: rgba(95, 71, 41, 0.15);
+  --accent: #542d29;
 }
 
 .dark {
@@ -39,6 +40,7 @@
   --muted: rgba(245, 245, 246, 0.78);
   --card: rgba(255, 255, 255, 0.06);
   --line: rgba(245, 245, 246, 0.14);
+  --accent: #cbbebc;
 }
 
 /* valfritt */
