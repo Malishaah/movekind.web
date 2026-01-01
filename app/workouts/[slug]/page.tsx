@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, Info, AlertCircle, Play, Plus } from "lucide-react";
-import Link from "next/link";
 
 type DeliveryWorkout = {
-  id: string;
+  id: string; // guid with hyphens
   name: string;
   route?: { path?: string };
   properties?: {
@@ -19,7 +19,7 @@ type DeliveryWorkout = {
     floorFriendly?: boolean;
     video?: string | null;
     image?: Array<{ url: string }>;
-    description?: any; // rich text JSON
+    description?: any; // rich text json
     steps?: {
       items?: Array<{
         content?: {
@@ -32,13 +32,18 @@ type DeliveryWorkout = {
             easierOption?: string;
             harderOption?: string;
             startAt?: number;
-            image?: Array<{ url: string }> | null;
           };
         };
       }>;
     };
   };
 };
+
+function toUdiFromGuid(guidWithHyphens: string) {
+  const g = (guidWithHyphens ?? "").trim();
+  if (!g) return null;
+  return `umb://document/${g.replace(/-/g, "")}`;
+}
 
 function richTextToPlain(node: any): string {
   if (!node) return "";
@@ -54,6 +59,21 @@ function fmtTime(seconds?: number | null) {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return r ? `${m} min ${r} s` : `${m} min`;
+}
+
+function Chip({ children, solid }: { children: React.ReactNode; solid?: boolean }) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-2xl border px-4 py-2 font-serif text-xl",
+        solid
+          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+          : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)]",
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
 }
 
 export default function WorkoutDetailPage() {
@@ -91,14 +111,19 @@ export default function WorkoutDetailPage() {
 
   const p = data?.properties;
 
-  const umbracoOrigin = process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ?? "https://localhost:44367";
+  const umbracoOrigin =
+    process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ??
+    process.env.NEXT_PUBLIC_UMBRACO_URL ??
+    "https://localhost:44367";
+
   const heroImg = p?.image?.[0]?.url ? new URL(p.image[0].url, umbracoOrigin).toString() : null;
 
+  const title = p?.title ?? data?.name ?? "Workout";
+  const level = p?.levelEasyMediumAdvanced ?? "Easy";
   const minutes = useMemo(() => Math.max(1, Math.round((p?.duration ?? 0) / 60)), [p?.duration]);
 
   const tags = useMemo(() => {
     const f = (p?.focus ?? []).filter(Boolean);
-    // Om du vill visa position som chips också:
     const pos = (p?.position ?? []).filter(Boolean);
     return [...f, ...pos].slice(0, 6);
   }, [p?.focus, p?.position]);
@@ -121,30 +146,29 @@ export default function WorkoutDetailPage() {
           harderOption: s!.properties?.harderOption ?? "",
         })) ?? [];
 
-    // sortera stabilt (order -> startAt)
     return items.sort((a, b) => (a.order - b.order) || (a.startAt - b.startAt));
   }, [p?.steps]);
 
-  const title = p?.title ?? data?.name ?? "Workout";
-  const level = p?.levelEasyMediumAdvanced ?? "Easy";
-
-  if (loading) return <div className="min-h-screen bg-[#fbf7f2] p-8">Loading…</div>;
-  if (err) return <div className="min-h-screen bg-[#fbf7f2] p-8 text-red-700">Error: {err}</div>;
+  if (loading) return <div className="min-h-screen bg-[var(--bg)] p-8 text-[var(--ink)]">Loading…</div>;
+  if (err) return <div className="min-h-screen bg-[var(--bg)] p-8 text-red-700">Error: {err}</div>;
   if (!data) return null;
 
   return (
-    <div className="min-h-screen bg-[#fbf7f2] text-[#1f1b16]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-3xl px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="rounded-full p-2 hover:bg-black/5"
+            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Back"
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="font-serif text-3xl">{title} – {level}</h1>
+
+          <h1 className="font-serif text-3xl">
+            {title} – <span className="text-[var(--muted)]">{level}</span>
+          </h1>
         </div>
 
         {/* Chips */}
@@ -156,51 +180,43 @@ export default function WorkoutDetailPage() {
           ))}
         </div>
 
-{/* Media */}
-<div className="mt-6 overflow-hidden rounded-2xl bg-black/5">
-  <div className="relative">
-    {heroImg ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={heroImg} alt={title} className="h-auto w-full object-cover" />
-    ) : (
-      <div className="aspect-video w-full" />
-    )}
+        {/* Media */}
+        <div className="mt-6 overflow-hidden rounded-2xl bg-black/5 dark:bg-white/5">
+          <div className="relative">
+            {heroImg ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={heroImg} alt={title} className="h-auto w-full object-cover" />
+            ) : (
+              <div className="aspect-video w-full" />
+            )}
 
-    {/* Clickable play overlay */}
-    <Link
-      href={`/workouts/${slug}/play`}
-      aria-label="Play workout"
-      className="absolute inset-0 grid place-items-center"
-    >
-      <span className="grid h-16 w-16 place-items-center rounded-full bg-black/50 backdrop-blur-sm transition hover:bg-black/60">
-        <Play className="h-8 w-8 text-white" />
-      </span>
-    </Link>
-  </div>
-</div>
+            {/* Play overlay */}
+            <Link
+              href={`/workouts/${slug}/play`}
+              aria-label="Play workout"
+              className="absolute inset-0 grid place-items-center"
+            >
+              <span className="grid h-16 w-16 place-items-center rounded-full bg-black/50 backdrop-blur-sm transition hover:bg-black/60">
+                <Play className="h-8 w-8 text-white" />
+              </span>
+            </Link>
+          </div>
+        </div>
+
         {/* Description */}
-        {description && (
-          <p className="mt-6 font-serif text-2xl leading-snug">
-            {description}
-          </p>
-        )}
+        {description && <p className="mt-6 font-serif text-2xl leading-snug">{description}</p>}
 
         {/* Info box */}
-        <div className="mt-6 rounded-2xl border border-[#cbb9aa] bg-white/40 p-5">
+        <div className="mt-6 rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)] p-5">
           <div className="flex items-start gap-3">
-            <div className="mt-1 rounded-full border border-[#cbb9aa] p-2">
-              <Info className="h-5 w-5" />
+            <div className="mt-1 rounded-full border border-[var(--accent)] p-2">
+              <Info className="h-6 w-6" />
             </div>
+
             <div className="space-y-1 text-lg">
-              <div className="font-serif">
-                Equipment: {p?.chairFriendly ? "Chair" : "None"}
-              </div>
-              <div className="font-serif">
-                Position: {(p?.position?.[0] ?? "—")}
-              </div>
-              <div className="font-serif">
-                {p?.floorFriendly ? "Floor-friendly" : "No floor required"}
-              </div>
+              <div className="font-serif">Equipment: {p?.chairFriendly ? "Chair" : "None"}</div>
+              <div className="font-serif">Position: {p?.position?.[0] ?? "—"}</div>
+              <div className="font-serif">{p?.floorFriendly ? "Floor-friendly" : "No floor required"}</div>
             </div>
           </div>
         </div>
@@ -210,37 +226,43 @@ export default function WorkoutDetailPage() {
 
         <div className="mt-5 space-y-5">
           {steps.map((s, idx) => (
-            <div key={s.id} className="rounded-2xl border border-[#cbb9aa] bg-white/40 p-6">
+            <div
+              key={s.id}
+              className="rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)] p-6"
+            >
               <div className="flex items-start gap-4">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-[#bfe2ea] font-serif text-lg">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-[color:rgba(191,226,234,0.9)] dark:bg-[color:rgba(191,226,234,0.18)] font-serif text-lg">
                   {idx + 1}
                 </div>
 
                 <div className="flex-1">
                   <div className="font-serif text-2xl leading-snug">{s.instruction}</div>
-                  <div className="mt-2 text-lg text-[#6e655c]">Time: {fmtTime(s.timeSeconds)}</div>
+                  <div className="mt-2 text-lg text-[var(--muted)]">Time: {fmtTime(s.timeSeconds)}</div>
                 </div>
 
-                <Check className="h-6 w-6 text-[#1f1b16]" />
+                <Check className="h-6 w-6 text-[var(--ink)]" />
               </div>
 
               {/* Safety */}
               {s.safetyNote && (
-                <div className="mt-4 flex items-start gap-2 text-[#d97706]">
-                  <AlertCircle className="mt-0.5 h-5 w-5" />
-                  <div className="text-lg font-semibold">{s.safetyNote}</div>
+                <div className="mt-4 flex items-start gap-3 rounded-2xl bg-[color:rgba(255,242,214,0.95)] dark:bg-[color:rgba(180,83,9,0.12)] p-4 text-[color:#b45309] dark:text-[color:rgba(255,206,150,0.95)]">
+                  <AlertCircle className="mt-0.5 h-9 w-9 shrink-0" />
+                  <div>
+                    <div className="font-serif text-xl sm:text-2xl">Safety</div>
+                    <div className="mt-1 text-base sm:text-lg font-semibold leading-snug">{s.safetyNote}</div>
+                  </div>
                 </div>
               )}
 
-              {/* Easier/Harder */}
               {s.easierOption && (
-                <div className="mt-4 rounded-xl bg-[#d9d1c8]/70 p-4 font-serif text-xl">
-                  Easier option: {s.easierOption}
+                <div className="mt-4 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
+                  Easier option: <span className="text-[var(--muted)]">{s.easierOption}</span>
                 </div>
               )}
+
               {s.harderOption && (
-                <div className="mt-3 rounded-xl bg-[#d9d1c8]/70 p-4 font-serif text-xl">
-                  Harder option: {s.harderOption}
+                <div className="mt-3 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 font-serif text-xl">
+                  Harder option: <span className="text-[var(--muted)]">{s.harderOption}</span>
                 </div>
               )}
             </div>
@@ -249,32 +271,27 @@ export default function WorkoutDetailPage() {
 
         {/* Bottom actions */}
         <div className="mt-10 space-y-4 pb-10">
-<Link
-  href={`/workouts/${slug}/play`}
-  className="flex w-full items-center justify-center gap-3 rounded-full bg-[#2a2521] px-8 py-5 font-serif text-xl text-white hover:opacity-95"
->
-  Start now
-</Link>
+          <Link
+            href={`/workouts/${slug}/play`}
+            className="flex w-full items-center justify-center gap-3 rounded-full bg-[var(--btn)] px-8 py-5 font-serif text-xl text-[var(--btnText)] hover:opacity-95"
+          >
+            Start now
+          </Link>
 
-          <button className="flex w-full items-center justify-center gap-3 rounded-full bg-[#2a2521] px-8 py-5 font-serif text-xl text-white hover:opacity-95">
+          <button
+            type="button"
+            onClick={() => {
+              const workoutUdi = toUdiFromGuid(data.id) ?? "";
+              const qp = new URLSearchParams({ add: "1", title, workoutUdi });
+              router.push(`/schedule?${qp.toString()}`);
+            }}
+            className="flex w-full items-center justify-center gap-3 rounded-full bg-[var(--btn)] px-8 py-5 font-serif text-xl text-[var(--btnText)] hover:opacity-95"
+          >
             <Plus className="h-5 w-5" />
             Add to schedule
           </button>
         </div>
       </div>
     </div>
-  );
-}
-
-function Chip({ children, solid }: { children: React.ReactNode; solid?: boolean }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-2xl border px-4 py-2 font-serif text-xl",
-        solid ? "border-[#6b5648] bg-[#6b5648] text-white" : "border-[#6b5648] bg-white/50",
-      ].join(" ")}
-    >
-      {children}
-    </span>
   );
 }

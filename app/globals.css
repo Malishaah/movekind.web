@@ -1,30 +1,58 @@
 @import "tailwindcss";
-
 /* Tailwind v4 plugin-syntax */
 @plugin "@tailwindcss/forms";
 @plugin "@tailwindcss/typography";
 
-
-
-/* Google Fonts (om du inte använder next/font) */
-@import url("https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;600&family=Source+Code+Pro:wght@400;600&display=swap");
-
+/* ❌ TA BORT denna när du använder next/font @import url("https://fonts.googleapis.com/css2?family=Geist+Sans:wght@400;600&family=Source+Code+Pro:wght@400;600&display=swap"); */
 /* Färg- och font-variabler */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-
-  /* dessa används av @theme inline nedan */
-  --font-geist-sans: "Geist Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  --font-geist-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New";
+  /* ✅ Sans + mono kan du behålla (om du fortfarande vill använda dem) Men om du inte laddar Geist via next/font längre, byt gärna till systemfont. */
+  --font-geist-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New";
+  /* ✅ NY: serif (Inria) – kommer från next/font via CSS-variabeln --font-serif i layout */
+  /* Vi sätter fallback här */
+  --font-inria-serif: ui-serif, Georgia, serif;
 }
 
-/* Mörkt läge via media (default i v4). Om du vill styra med .dark-klass, se not nedan. */
+/* Mörkt läge via media */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+:root {
+  --bg: #fbf7f2;
+  --ink: #1f1b16;
+  --muted: #6e655c;
+  --card: #d9d1c8;
+  --line: rgba(0, 0, 0, 0.10);
+  --accent: #6b5648;
+  --btn: #2a2521;
+  --btnText: #ffffff;
+}
+
+html.dark {
+  --bg: #0f0f10;
+  --ink: #f4f1ed;
+  --muted: #b6ada5;
+  --card: #1a1a1c;
+  --line: rgba(255, 255, 255, 0.14);
+  --accent: #bda995;
+  --btn: #f4f1ed;
+  --btnText: #0f0f10;
+}
+
+/* valfritt */
+html.mk-large-text {
+  font-size: 112.5%;
+}
+
+html.mk-high-contrast {
+  --line: rgba(255, 255, 255, 0.28);
 }
 
 /* Knyt Tailwind-nycklar till dina CSS-variabler */
@@ -33,6 +61,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* ✅ NY: Tailwind font-serif använder Inria Serif (via next/font variable) */
+  --font-serif: var(--font-serif), var(--font-inria-serif);
 }
 
 /* Bas-styles */
@@ -45,7 +75,7 @@
   }
 
   body {
-    font-family: var(--font-geist-sans);
+    font-family: var(--font-sans);
     background: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;

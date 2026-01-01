@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Agent } from "undici";
+import https from "https";
 
 const BASE = (process.env.NEXT_PUBLIC_UMBRACO_URL || "").replace(/\/$/, "");
-const insecureAgent =
+
+const httpsAgent =
   process.env.NODE_ENV !== "production"
-    ? new Agent({ connect: { rejectUnauthorized: false } })
+    ? new https.Agent({ rejectUnauthorized: false })
     : undefined;
 
 export async function GET(
@@ -16,8 +17,10 @@ export async function GET(
   }
 
   const url = `${BASE}/media/${params.path.join("/")}`;
+
   const upstream = await fetch(url, {
-    dispatcher: insecureAgent,
+    // @ts-expect-error - Node fetch supports agent but types are web-only in Next
+    agent: httpsAgent,
     headers: { Accept: "image/avif,image/webp,image/*,*/*;q=0.8" },
   });
 

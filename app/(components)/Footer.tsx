@@ -20,18 +20,19 @@ type Props = {
 };
 
 function safeHref(url: string) {
-  // allow http(s), mailto, tel, and relative routes
   const u = url.trim();
   if (u.startsWith("/")) return absoluteMedia(u);
   if (u.startsWith("http://") || u.startsWith("https://")) return u;
   if (u.startsWith("mailto:") || u.startsWith("tel:")) return u;
-  // fallback: treat as relative
   return u;
 }
 
 function relForTarget(target?: string | null) {
   return target === "_blank" ? "noopener noreferrer" : undefined;
 }
+
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]";
 
 export default function Footer({
   aboutHeading,
@@ -47,31 +48,23 @@ export default function Footer({
   const socials = (footerSocialMedia ?? []).filter((l) => l?.url);
 
   return (
-    <footer className="border-t border-black/10 bg-[#fbf7f2] text-[#1f1b16]">
+    <footer className="border-t border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-6xl px-6 py-12">
-        {/* Top grid */}
         <div className="grid gap-10 md:grid-cols-12">
-          {/* About */}
           <div className="md:col-span-5">
-            <h3 className="font-serif text-2xl">
-              {aboutHeading ?? "About"}
-            </h3>
-            <div className="mt-4 text-lg leading-relaxed text-[#6e655c]">
+            <h3 className="font-serif text-2xl">{aboutHeading ?? "About"}</h3>
+            <div className="mt-4 text-lg leading-relaxed text-[var(--muted)]">
               {renderRichText(aboutText)}
             </div>
           </div>
 
-          {/* Contact */}
           <div className="md:col-span-4">
-            <h3 className="font-serif text-2xl">
-              {contactHeading ?? "Contact"}
-            </h3>
-            <div className="mt-4 text-lg leading-relaxed text-[#6e655c]">
+            <h3 className="font-serif text-2xl">{contactHeading ?? "Contact"}</h3>
+            <div className="mt-4 text-lg leading-relaxed text-[var(--muted)]">
               {renderRichText(contactText)}
             </div>
           </div>
 
-          {/* Links + Social */}
           <div className="md:col-span-3">
             <h3 className="font-serif text-2xl">Links</h3>
 
@@ -83,20 +76,26 @@ export default function Footer({
                       href={safeHref(l!.url!)}
                       target={l?.target ?? "_self"}
                       rel={relForTarget(l?.target)}
-                      className="group inline-flex items-center gap-2 rounded-lg px-2 py-1 text-lg text-[#1f1b16] hover:bg-black/5"
+                      className={[
+                        "group inline-flex items-center gap-2 rounded-lg px-2 py-1 text-lg",
+                        "text-[var(--ink)]",
+                        "hover:bg-black/5 dark:hover:bg-white/10",
+                        focusRing,
+                      ].join(" ")}
                     >
                       <span className="underline-offset-4 group-hover:underline">
                         {l?.title ?? l!.url}
                       </span>
+
                       {l?.target === "_blank" && (
-                        <span className="text-sm text-[#6e655c]">(new)</span>
+                        <span className="text-sm text-[var(--muted)]">(opens in a new tab)</span>
                       )}
                     </a>
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="mt-4 text-lg text-[#6e655c]">—</div>
+              <div className="mt-4 text-lg text-[var(--muted)]">—</div>
             )}
 
             {socials.length > 0 && (
@@ -104,6 +103,7 @@ export default function Footer({
                 <h3 className="mt-8 font-serif text-2xl">
                   {socialMediaTitle ?? "Social"}
                 </h3>
+
                 <div className="mt-4 flex flex-wrap gap-3">
                   {socials.map((l, i) => (
                     <a
@@ -111,7 +111,14 @@ export default function Footer({
                       href={safeHref(l!.url!)}
                       target={l?.target ?? "_blank"}
                       rel="noopener noreferrer"
-                      className="rounded-full border border-black/20 bg-white/40 px-4 py-2 font-serif text-lg hover:bg-black/5"
+                      className={[
+                        "rounded-full border px-4 py-2 font-serif text-lg transition",
+                        "border-[var(--line)]",
+                        "bg-white/40 dark:bg-white/5",
+                        "text-[var(--ink)]",
+                        "hover:bg-black/5 dark:hover:bg-white/10",
+                        focusRing,
+                      ].join(" ")}
                     >
                       {l?.title ?? l!.url}
                     </a>
@@ -122,13 +129,12 @@ export default function Footer({
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-black/10 pt-6 md:flex-row">
-          <div className="font-serif text-lg text-[#6e655c]">
-            {`© ${new Date().getFullYear()} MoveKind`}
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--line)] pt-6 md:flex-row">
+          <div className="font-serif text-lg text-[var(--muted)]">
+            {copyrightText?.trim()
+              ? copyrightText
+              : `© ${new Date().getFullYear()} MoveKind`}
           </div>
-
-
         </div>
       </div>
     </footer>

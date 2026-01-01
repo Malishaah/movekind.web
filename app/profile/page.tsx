@@ -1,26 +1,37 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, LogOut, Bell } from 'lucide-react';
-import { apiGet, apiPut, apiPost } from '@/app/lib/api';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, LogOut, Bell } from "lucide-react";
+import { apiGet, apiPut, apiPost } from "@/app/lib/api";
 
 type Profile = {
-  Email: string;
-  Name: string;
-  LargerText: boolean;
-  HighContrast: boolean;
-  LightMode: boolean;
-  CaptionsOnByDefault: boolean;
-  RemindersEnabled: boolean;
-  DefaultReminderTime: string; // "HH:mm" (eller med sekunder från backend)
+  email: string;
+  name: string;
+  largerText: boolean;
+  highContrast: boolean;
+  lightMode: boolean; // true = light, false = dark
+  captionsOnByDefault: boolean;
+  remindersEnabled: boolean;
+  defaultReminderTime: string; // "HH:mm" (eller "HH:mm:ss")
 };
 
 function toHHMM(v: string) {
-  if (!v) return '08:00';
-  // backend kan skicka "08:00:00" -> gör "08:00"
+  if (!v) return "08:00";
   return v.length >= 5 ? v.slice(0, 5) : v;
+}
+
+function applyUiPreferences(p: Profile | null) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+
+  // LightMode true => INTE dark. LightMode false => dark.
+  root.classList.toggle("dark", !p?.lightMode);
+
+  // valfria extra
+  root.classList.toggle("mk-large-text", !!p?.largerText);
+  root.classList.toggle("mk-high-contrast", !!p?.highContrast);
 }
 
 export default function ProfilePage() {
@@ -28,7 +39,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [msg, setMsg] = useState<string | null>(null);
 
   const didHydrate = useRef(false);
@@ -37,18 +48,30 @@ export default function ProfilePage() {
   async function load() {
     setMsg(null);
     setLoading(true);
+
     try {
-      const p = await apiGet('/api/members/me');
-      setProfile({
-        ...p,
-        DefaultReminderTime: toHHMM(p.DefaultReminderTime),
-      });
+      const p = (await apiGet("/api/members/me")) as any;
+
+      const mapped: Profile = {
+        email: p.email ?? "",
+        name: p.name ?? "",
+        largerText: !!p.largerText,
+        highContrast: !!p.highContrast,
+        lightMode: !!p.lightMode,
+        captionsOnByDefault: !!p.captionsOnByDefault,
+        remindersEnabled: !!p.remindersEnabled,
+        defaultReminderTime: toHHMM(p.defaultReminderTime ?? "08:00"),
+      };
+
+      setProfile(mapped);
+      applyUiPreferences(mapped);
     } catch (err: any) {
-      setMsg(err?.message || 'Not logged in?');
+      setMsg(err?.message || "Not logged in?");
       setProfile(null);
+      applyUiPreferences(null);
     } finally {
       setLoading(false);
-      setStatus('idle');
+      setStatus("idle");
       didHydrate.current = true;
     }
   }
@@ -58,25 +81,36 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Autosave (debounce) när profil ändras
+  // ✅ Apply theme instantly when toggling in UI
+  useEffect(() => {
+    if (!profile) return;
+    applyUiPreferences(profile);
+  }, [profile?.lightMode, profile?.largerText, profile?.highContrast]);
+
+  // Autosave (debounce)
   useEffect(() => {
     if (!profile) return;
     if (!didHydrate.current) return;
 
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
 
-    setStatus('saving');
+    setStatus("saving");
     setMsg(null);
 
     saveTimer.current = window.setTimeout(async () => {
       try {
-        const payload = { ...profile, DefaultReminderTime: toHHMM(profile.DefaultReminderTime) };
-        await apiPut('/api/members/me', payload);
-        setStatus('saved');
-        window.setTimeout(() => setStatus('idle'), 1200);
+        const payload = {
+          ...profile,
+          defaultReminderTime: toHHMM(profile.defaultReminderTime),
+        };
+
+        await apiPut("/api/members/me", payload);
+
+        setStatus("saved");
+        window.setTimeout(() => setStatus("idle"), 1200);
       } catch (err: any) {
-        setStatus('error');
-        setMsg(err?.message || 'Save failed');
+        setStatus("error");
+        setMsg(err?.message || "Save failed");
       }
     }, 500);
 
@@ -87,25 +121,26 @@ export default function ProfilePage() {
 
   async function logout() {
     try {
-      await apiPost('/api/auth/logout');
+      await apiPost("/api/auth/logout");
       setProfile(null);
-      setMsg('Logged out');
-      router.push('/'); // eller /login om du har det
+      setMsg("Logged out");
+      applyUiPreferences(null);
+      router.push("/");
     } catch (err: any) {
-      setMsg(err?.message || 'Logout failed');
+      setMsg(err?.message || "Logout failed");
     }
   }
 
-  const email = useMemo(() => profile?.Email ?? '', [profile]);
+  const email = useMemo(() => profile?.email ?? "", [profile]);
 
   return (
-    <div className="min-h-screen bg-[#fbf7f2] text-[#1f1b16]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <div className="mx-auto max-w-xl px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="rounded-full p-2 hover:bg-black/5"
+            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
             aria-label="Back"
           >
             <ArrowLeft className="h-7 w-7" />
@@ -113,28 +148,27 @@ export default function ProfilePage() {
           <h1 className="font-serif text-3xl">Profile &amp; Settings</h1>
         </div>
 
-        <div className="mt-4 h-px w-full bg-black/10" />
+        <div className="mt-4 h-px w-full bg-[var(--line)]" />
 
-        {/* Content */}
         {loading ? (
-          <div className="py-10 text-lg text-[#6e655c]">Loading…</div>
+          <div className="py-10 text-lg text-[var(--muted)]">Loading…</div>
         ) : !profile ? (
           <div className="py-10">
-            <p className="text-lg text-[#6e655c]">{msg ?? 'Not logged in.'}</p>
+            <p className="text-lg text-[var(--muted)]">{msg ?? "Not logged in."}</p>
           </div>
         ) : (
           <>
             {/* User card */}
-            <div className="mt-6 rounded-2xl bg-[#d9d1c8] p-5">
+            <div className="mt-6 rounded-2xl bg-[var(--card)] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="font-serif text-2xl">User</div>
-                  <div className="mt-2 text-xl text-[#6e655c]">{email}</div>
+                  <div className="mt-2 text-xl text-[var(--muted)]">{email}</div>
                 </div>
 
                 <button
                   onClick={logout}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#2a2521] px-5 py-3 font-serif text-xl text-white hover:opacity-95"
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--btn)] px-5 py-3 font-serif text-xl text-[var(--btnText)] hover:opacity-95"
                 >
                   <LogOut className="h-5 w-5" />
                   Log out
@@ -142,60 +176,49 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-6 h-px w-full bg-black/10" />
+            <div className="mt-6 h-px w-full bg-[var(--line)]" />
 
-            {/* Accessibility */}
             <SectionTitle>Accessibility</SectionTitle>
 
-            <SettingRow
-              title="Larger text"
-              description="Increase text size throughout the app"
-              checked={profile.LargerText}
-              onChange={(v) => setProfile({ ...profile, LargerText: v })}
-            />
-
-            <SettingRow
-              title="High contrast"
-              description="Improved readability with higher contrast"
-              checked={profile.HighContrast}
-              onChange={(v) => setProfile({ ...profile, HighContrast: v })}
-            />
+            {/* (valfritt) largerText/highContrast om du vill visa senare */}
+            {/* <SettingRow title="Larger text" checked={profile.largerText} onChange={(v)=>setProfile({...profile, largerText:v})} /> */}
+            {/* <SettingRow title="High contrast" checked={profile.highContrast} onChange={(v)=>setProfile({...profile, highContrast:v})} /> */}
 
             <SettingRow
               title="Light mode"
-              checked={profile.LightMode}
-              onChange={(v) => setProfile({ ...profile, LightMode: v })}
+              description="Turn off to enable dark mode"
+              checked={profile.lightMode}
+              onChange={(v) => setProfile({ ...profile, lightMode: v })}
             />
 
             <SettingRow
               title="Captions on by default"
               description="Show captions automatically in videos"
-              checked={profile.CaptionsOnByDefault}
-              onChange={(v) => setProfile({ ...profile, CaptionsOnByDefault: v })}
+              checked={profile.captionsOnByDefault}
+              onChange={(v) => setProfile({ ...profile, captionsOnByDefault: v })}
             />
 
-            <div className="mt-6 h-px w-full bg-black/10" />
+            <div className="mt-6 h-px w-full bg-[var(--line)]" />
 
-            {/* Reminders */}
             <SectionTitle>Reminders</SectionTitle>
 
             <SettingRow
               icon={<Bell className="h-6 w-6" />}
               title="Enable reminders"
               description="Receive notifications for scheduled sessions"
-              checked={profile.RemindersEnabled}
-              onChange={(v) => setProfile({ ...profile, RemindersEnabled: v })}
+              checked={profile.remindersEnabled}
+              onChange={(v) => setProfile({ ...profile, remindersEnabled: v })}
             />
 
             <div className="mt-6">
               <div className="font-serif text-2xl">Default reminder time</div>
-              <div className="mt-3 rounded-2xl bg-[#d9d1c8] p-4">
+              <div className="mt-3 rounded-2xl bg-[var(--card)] p-4">
                 <input
                   type="time"
                   step={60}
-                  value={toHHMM(profile.DefaultReminderTime)}
+                  value={toHHMM(profile.defaultReminderTime)}
                   onChange={(e) =>
-                    setProfile({ ...profile, DefaultReminderTime: toHHMM(e.target.value) })
+                    setProfile({ ...profile, defaultReminderTime: toHHMM(e.target.value) })
                   }
                   className="w-full bg-transparent font-serif text-3xl outline-none"
                   aria-label="Default reminder time"
@@ -203,18 +226,27 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-8 h-px w-full bg-black/10" />
+            <div className="mt-8 h-px w-full bg-[var(--line)]" />
 
-            {/* My needs */}
             <SectionTitle>My needs</SectionTitle>
 
             <Link
-              href="/onboarding"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[#6b5648] bg-transparent px-6 py-4 font-serif text-2xl hover:bg-black/5"
+              href="/personalize"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[var(--accent)] bg-transparent px-6 py-4 font-serif text-2xl hover:bg-black/5 dark:hover:bg-white/10"
             >
               Review onboarding
             </Link>
- 
+
+            <div className="mt-6 text-sm text-[var(--muted)]">
+              {status === "saving"
+                ? "Saving…"
+                : status === "saved"
+                ? "Saved"
+                : status === "error"
+                ? "Error saving"
+                : ""}
+              {msg ? ` · ${msg}` : ""}
+            </div>
           </>
         )}
       </div>
@@ -245,7 +277,9 @@ function SettingRow({
         {icon ? <div className="mt-1">{icon}</div> : null}
         <div>
           <div className="font-serif text-2xl">{title}</div>
-          {description ? <div className="mt-2 text-lg text-[#6e655c]">{description}</div> : null}
+          {description ? (
+            <div className="mt-2 text-lg text-[var(--muted)]">{description}</div>
+          ) : null}
         </div>
       </div>
 
@@ -254,13 +288,7 @@ function SettingRow({
   );
 }
 
-function Switch({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
+function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
@@ -268,18 +296,17 @@ function Switch({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={[
-        'relative h-10 w-16 rounded-full border transition',
-        checked ? 'border-[#6b5648] bg-[#6b5648]' : 'border-[#6b5648] bg-transparent',
-      ].join(' ')}
+        "relative h-10 w-16 rounded-full border transition",
+        "border-[var(--accent)]",
+        checked ? "bg-[var(--accent)]" : "bg-transparent",
+      ].join(" ")}
     >
-      {/* knob */}
       <span
         className={[
-          'absolute top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-white transition',
-          checked ? 'left-8' : 'left-1',
-        ].join(' ')}
+          "absolute top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-white transition",
+          checked ? "left-8" : "left-1",
+        ].join(" ")}
       />
-      {/* tiny vertical mark like in mock */}
       <span className="absolute left-3 top-1/2 h-4 w-px -translate-y-1/2 bg-white/70" />
     </button>
   );

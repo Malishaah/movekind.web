@@ -1,45 +1,53 @@
-export async function apiPost(path: string, data?: any) {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: data ? JSON.stringify(data) : undefined
-  });
+export async function apiGet<T = any>(path: string): Promise<T> {
+  const res = await fetch(path, { credentials: "include", cache: "no-store" });
   if (!res.ok) {
-    let t = await res.text();
-    throw new Error(t || res.statusText);
-  }
-  return res.json().catch(() => ({}));
-}
-
-export async function apiPut(path: string, data?: any) {
-  const res = await fetch(path, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: data ? JSON.stringify(data) : undefined
-  });
-  if (!res.ok) {
-    let t = await res.text();
-    throw new Error(t || res.statusText);
-  }
-  return res.json().catch(() => ({}));
-}
-
-export async function apiGet(path: string) {
-  const res = await fetch(path, { credentials: 'include' });
-  if (!res.ok) {
-    let t = await res.text();
+    const t = await res.text();
     throw new Error(t || res.statusText);
   }
   return res.json();
 }
 
-export async function apiDelete(path: string) {
-  const res = await fetch(path, { method: 'DELETE', credentials: 'include' });
+export async function apiPost<T = any>(path: string, body?: any): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
   if (!res.ok) {
-    let t = await res.text();
+    const t = await res.text();
     throw new Error(t || res.statusText);
   }
-  return res.text();
+
+  // om endpoint ibland returnerar 204
+  if (res.status === 204) return undefined as unknown as T;
+
+  return res.json();
+}
+
+export async function apiPut<T = any>(path: string, body: any): Promise<T> {
+  const res = await fetch(path, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || res.statusText);
+  }
+
+  if (res.status === 204) return undefined as unknown as T;
+
+  return res.json();
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  const res = await fetch(path, { method: "DELETE", credentials: "include" });
+  if (!res.ok && res.status !== 204) {
+    const t = await res.text();
+    throw new Error(t || res.statusText);
+  }
 }

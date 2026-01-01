@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPut } from "@/app/lib/api";
+import { apiGet, apiPut } from "@/app/lib/api";
 
 type Need =
   | "Knee"
@@ -16,6 +16,20 @@ type Need =
 
 type Level = "Easy" | "Medium" | "Advanced";
 
+// ✅ Matchar din backend (camelCase)
+type PersonalizationDto = {
+  personalizationNeeds: Need[];
+  personalizationLevel: Level | null;
+  personalizationSkipped: boolean;
+};
+
+// (valfritt) tolerant om backend nån gång skickar PascalCase
+type PersonalizationDtoAny = Partial<PersonalizationDto> & {
+  PersonalizationNeeds?: Need[];
+  PersonalizationLevel?: Level | null;
+  PersonalizationSkipped?: boolean;
+};
+
 export default function PersonalizePage() {
   const router = useRouter();
 
@@ -24,11 +38,54 @@ export default function PersonalizePage() {
     []
   );
 
-  const [selectedNeeds, setSelectedNeeds] = useState<Need[]>(["Knee"]);
+  const [selectedNeeds, setSelectedNeeds] = useState<Need[]>([]);
   const [level, setLevel] = useState<Level | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const pageBg = "bg-[var(--bg)] text-[var(--ink)]";
+  const card = "bg-[var(--card)]";
+  const line = "border-[var(--line)]";
+  const muted = "text-[var(--muted)]";
+  const btn = "bg-[var(--btn)] text-[var(--btnText)]";
+
+  // ✅ Load saved personalization (pre-fill)
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setMsg(null);
+
+        const dto = await apiGet<PersonalizationDtoAny>("/api/personalization");
+        if (!alive) return;
+
+        const incomingNeeds =
+          (dto.personalizationNeeds ?? dto.PersonalizationNeeds ?? []) as Need[];
+        const incomingLevel =
+          (dto.personalizationLevel ?? dto.PersonalizationLevel ?? null) as Level | null;
+
+        const safeNeeds = Array.isArray(incomingNeeds)
+          ? incomingNeeds.filter(Boolean)
+          : [];
+
+        setSelectedNeeds(safeNeeds); // tom array är ok här
+        setLevel(incomingLevel ?? null);
+      } catch (e: any) {
+        // ok att ignorera om endpoint saknas / ej inloggad
+        // setMsg(e?.message ?? "Could not load personalization");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const toggleNeed = (n: Need) => {
     setSelectedNeeds((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
@@ -39,17 +96,16 @@ export default function PersonalizePage() {
     setMsg(null);
 
     try {
-      // Anpassa fältnamn efter din backendmodell:
-      // ex: PersonalizationNeeds / PersonalizationLevel
-      await apiPut("/api/members/me", {
-        PersonalizationNeeds: payload.needs,
-        PersonalizationLevel: payload.level,
-        PersonalizationSkipped: !!payload.skipped,
-      });
+      await apiPut(
+        "/api/personalization",
+        {
+          personalizationNeeds: payload.needs ?? [],
+          personalizationLevel: payload.level ?? null,
+          personalizationSkipped: !!payload.skipped,
+        } satisfies PersonalizationDto
+      );
 
-      // Uppdatera header-menyn direkt (om du använder auth-changed mönstret)
       window.dispatchEvent(new Event("auth-changed"));
-
       router.replace("/");
       router.refresh();
     } catch (e: any) {
@@ -62,36 +118,37 @@ export default function PersonalizePage() {
   const canContinue = !!level && !busy;
 
   return (
-    <div className="min-h-screen bg-[#fbf7f2] text-[#1f1b16]">
-      <div className="relative mx-auto max-w-6xl px-6 py-10 sm:px-8 sm:py-12">
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] rounded-3xl bg-gradient-to-b from-[#f3e7dc]/70 to-transparent lg:block"
-          aria-hidden="true"
-        />
+    <div className={`min-h-screen ${pageBg}`}>
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
+        {/* Header / Step */}
+        <div className="flex flex-col gap-4">
+          <div
+            className={`inline-flex w-fit items-center gap-2 rounded-full ${card} ${line} border px-4 py-2 font-serif text-base sm:text-lg ${muted}`}
+          >
+            Step 1 of 1
+          </div>
 
-        <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
-          {/* Left */}
-          <main className="relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#d8cbbf] bg-white/50 px-4 py-2 font-serif text-lg text-[#6e655c]">
-              Step 1 of 1
-            </div>
+          <h1 className="font-serif text-3xl sm:text-5xl tracking-tight">
+            Personalize your experience
+          </h1>
 
-            <h1 className="mt-5 font-serif text-5xl tracking-tight">
-              Personalize your experience
-            </h1>
+          <p className={`max-w-2xl text-base sm:text-lg ${muted}`}>
+            Tell us what you need so we can suggest sessions that fit your body and your space.
+          </p>
 
-            <p className="mt-4 max-w-2xl text-lg text-[#6e655c]">
-              Tell us what you need so we can suggest sessions that fit your body and your space.
-            </p>
+          <div className={`h-px w-full ${line} border-t`} />
+        </div>
 
-            <div className="mt-10 h-px w-full bg-[#d8cbbf]" />
-
+        {loading ? (
+          <div className={`mt-8 text-base sm:text-lg ${muted}`}>Loading…</div>
+        ) : (
+          <>
             {/* Needs */}
-            <section className="mt-10">
-              <h2 className="font-serif text-3xl">Choose your needs</h2>
-              <p className="mt-2 text-base text-[#6e655c]">Select one or more:</p>
+            <section className="mt-8">
+              <h2 className="font-serif text-2xl sm:text-3xl">Choose your needs</h2>
+              <p className={`mt-2 text-sm sm:text-base ${muted}`}>Select one or more:</p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
                 {needs.map((n) => {
                   const active = selectedNeeds.includes(n);
                   return (
@@ -101,17 +158,18 @@ export default function PersonalizePage() {
                       onClick={() => toggleNeed(n)}
                       aria-pressed={active}
                       className={[
-                        "inline-flex items-center gap-2 rounded-full border px-5 py-3 text-lg",
-                        "transition focus:outline-none focus:ring-2 focus:ring-[#6b5648]/40",
+                        "inline-flex items-center gap-2 rounded-full border px-4 py-3 sm:px-5 sm:py-3",
+                        "text-base sm:text-lg transition",
+                        "focus:outline-none focus:ring-2 focus:ring-black/15 dark:focus:ring-white/15",
                         active
-                          ? "border-[#6b5648] bg-[#6b5648] text-white"
-                          : "border-[#6b5648] bg-white/70 hover:bg-white",
+                          ? "border-[var(--btn)] bg-[var(--btn)] text-[var(--btnText)]"
+                          : `${line} ${card} hover:opacity-95`,
                       ].join(" ")}
                     >
                       <span
                         className={[
                           "grid h-6 w-6 place-items-center rounded-full border",
-                          active ? "border-white/40 bg-white/15" : "border-[#b9aa9c] bg-transparent",
+                          active ? "border-white/30 bg-white/15" : `${line} bg-transparent`,
                         ].join(" ")}
                         aria-hidden="true"
                       >
@@ -125,13 +183,13 @@ export default function PersonalizePage() {
             </section>
 
             {/* Level */}
-            <section className="mt-12">
-              <h2 className="font-serif text-3xl">Goal level</h2>
-              <p className="mt-2 text-base text-[#6e655c]">
+            <section className="mt-10">
+              <h2 className="font-serif text-2xl sm:text-3xl">Goal level</h2>
+              <p className={`mt-2 text-sm sm:text-base ${muted}`}>
                 Choose the intensity that feels right right now.
               </p>
 
-              <div className="mt-6 space-y-3">
+              <div className="mt-5 space-y-3">
                 {(["Easy", "Medium", "Advanced"] as Level[]).map((l) => {
                   const active = level === l;
                   return (
@@ -140,17 +198,15 @@ export default function PersonalizePage() {
                       type="button"
                       onClick={() => setLevel(l)}
                       className={[
-                        "w-full rounded-2xl border px-6 py-5 text-left",
-                        "transition focus:outline-none focus:ring-2 focus:ring-[#6b5648]/40",
-                        active
-                          ? "border-[#6b5648] bg-white shadow-sm"
-                          : "border-[#d8cbbf] bg-white/60 hover:bg-white",
+                        "w-full rounded-2xl border px-5 py-4 sm:px-6 sm:py-5 text-left transition",
+                        "focus:outline-none focus:ring-2 focus:ring-black/15 dark:focus:ring-white/15",
+                        active ? `border-[var(--btn)] ${card}` : `${line} ${card} hover:opacity-95`,
                       ].join(" ")}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-4">
                         <div>
-                          <div className="font-serif text-2xl">{l}</div>
-                          <div className="mt-1 text-base text-[#6e655c]">
+                          <div className="font-serif text-xl sm:text-2xl">{l}</div>
+                          <div className={`mt-1 text-sm sm:text-base ${muted}`}>
                             {l === "Easy" && "Gentle, steady pace"}
                             {l === "Medium" && "A bit more challenge"}
                             {l === "Advanced" && "More intensity and tempo"}
@@ -159,8 +215,8 @@ export default function PersonalizePage() {
 
                         <span
                           className={[
-                            "grid h-6 w-6 place-items-center rounded-full border",
-                            active ? "border-[#6b5648] bg-[#6b5648]" : "border-[#b9aa9c]",
+                            "grid h-6 w-6 place-items-center rounded-full border shrink-0",
+                            active ? "border-[var(--btn)] bg-[var(--btn)]" : `${line}`,
                           ].join(" ")}
                           aria-hidden="true"
                         >
@@ -173,28 +229,28 @@ export default function PersonalizePage() {
               </div>
 
               {/* Info box */}
-              <div className="mt-6 flex items-start gap-3 rounded-2xl bg-[#e9dfd4] px-5 py-4 text-[#554c43]">
-                <div className="mt-0.5 grid h-8 w-8 place-items-center rounded-full border border-[#b9aa9c] font-serif">
-                  i
+              <div className={`mt-6 rounded-2xl ${card} ${line} border px-5 py-4`}>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 grid h-8 w-8 place-items-center rounded-full ${line} border font-serif ${muted}`}>
+                    i
+                  </div>
+                  <p className={`text-sm sm:text-base leading-relaxed ${muted}`}>
+                    You can change your preferences later in your profile.
+                  </p>
                 </div>
-                <p className="text-base leading-relaxed">
-                  You can change your preferences later in your profile.
-                </p>
               </div>
 
-              {msg && <p className="mt-4 text-base text-red-700">{msg}</p>}
+              {msg && <p className="mt-4 text-sm sm:text-base text-red-600">{msg}</p>}
 
               {/* Actions */}
-              <div className="mt-10">
+              <div className="mt-8 space-y-4">
                 <button
                   type="button"
                   disabled={!canContinue}
                   className={[
-                    "w-full rounded-full px-8 py-5 text-center font-serif text-xl shadow-sm transition",
-                    "focus:outline-none focus:ring-2 focus:ring-[#2a2521]/40",
-                    canContinue
-                      ? "bg-[#2a2521] text-white hover:opacity-95"
-                      : "bg-black/20 text-white/70 cursor-not-allowed",
+                    "w-full rounded-full px-6 py-4 sm:px-8 sm:py-5 text-center font-serif text-lg sm:text-xl shadow-sm transition",
+                    "focus:outline-none focus:ring-2 focus:ring-black/15 dark:focus:ring-white/15",
+                    canContinue ? `${btn} hover:opacity-95` : "bg-black/20 text-white/70 cursor-not-allowed",
                   ].join(" ")}
                   onClick={() => {
                     if (!level) {
@@ -210,40 +266,15 @@ export default function PersonalizePage() {
                 <button
                   type="button"
                   disabled={busy}
-                  className="mx-auto mt-5 block text-lg font-semibold underline underline-offset-4 hover:opacity-80 disabled:opacity-50"
+                  className={`mx-auto block text-base sm:text-lg font-semibold underline underline-offset-4 hover:opacity-80 disabled:opacity-50 ${muted}`}
                   onClick={() => saveAndGoHome({ needs: [], level: null, skipped: true })}
                 >
                   Skip for now
                 </button>
               </div>
             </section>
-          </main>
-
-          {/* Right column placeholder (valfritt: illustration / summary card) */}
-          <aside className="relative z-10 hidden lg:block">
-            <div className="rounded-3xl border border-[#d8cbbf] bg-white/40 p-7">
-              <div className="font-serif text-3xl">Your choices</div>
-              <div className="mt-4 text-lg text-[#6e655c]">Needs</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedNeeds.length ? (
-                  selectedNeeds.map((n) => (
-                    <span
-                      key={n}
-                      className="rounded-full border border-[#6b5648] bg-white/60 px-3 py-1 font-serif text-lg"
-                    >
-                      {n}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[#6e655c]">None selected</span>
-                )}
-              </div>
-
-              <div className="mt-5 text-lg text-[#6e655c]">Level</div>
-              <div className="mt-2 font-serif text-2xl">{level ?? "Not selected"}</div>
-            </div>
-          </aside>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

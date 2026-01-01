@@ -9,12 +9,12 @@ type LevelUI = "Any" | "Easy" | "Medium" | "Advanced";
 type PositionUI = "Any" | "Seated" | "Standing" | "Lying";
 
 type Workout = {
-  id: string;              // GUID från Umbraco
-  slug: string;            // från route.path
+  id: string;
+  slug: string;
   title: string;
   minutes: number;
-  levelText: string;       // "Easy" etc
-  tagsText: string;        // "Knee, Balance"
+  levelText: string;
+  tagsText: string;
   imageUrl?: string | null;
   floorFriendly?: boolean;
   chairFriendly?: boolean;
@@ -41,14 +41,8 @@ type DeliveryItem = {
 
 type DeliveryResponse = { total: number; items: DeliveryItem[] };
 
-function slugFromPath(path?: string, fallback = "") {
-  const parts = (path ?? "").split("/").filter(Boolean);
-  return parts[parts.length - 1] || fallback;
-}
-
 function chipTags(focus?: string[], position?: string[]) {
   const a = [...(focus ?? []), ...(position ?? [])].map((x) => x?.trim()).filter(Boolean);
-  // i bilden står typ "Knee, Balance" — vi tar max 2 för snygg meta
   return a.slice(0, 2).join(", ");
 }
 
@@ -57,7 +51,6 @@ export default function WorkoutsPage() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // UI state
   const [query, setQuery] = useState("");
   const [bodyPart, setBodyPart] = useState<string>("Any");
   const [level, setLevel] = useState<LevelUI>("Any");
@@ -71,8 +64,7 @@ export default function WorkoutsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: DeliveryResponse = await res.json();
 
-      const umbracoOrigin =
-        process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ?? "https://localhost:44367";
+      const umbracoOrigin = process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ?? "https://localhost:44367";
 
       const mapped: Workout[] = (data.items ?? [])
         .filter((x) => x.contentType === "workout")
@@ -81,9 +73,8 @@ export default function WorkoutsPage() {
           const img = p.image?.[0]?.url;
           const imageUrl = img ? new URL(img, umbracoOrigin).toString() : null;
 
-          const slug =  x.id;
+          const slug = x.id;
           const title = p.title ?? x.name;
-
           const levelText = p.levelEasyMediumAdvanced ?? "Easy";
           const minutes = Math.max(1, Math.round((p.duration ?? 0) / 60));
           const tagsText = chipTags(p.focus, p.position);
@@ -111,10 +102,10 @@ export default function WorkoutsPage() {
 
   async function loadFavorites() {
     try {
-      const ids = await apiGet("/api/favorites/ids"); // bör returnera string[] (GUID)
-      setFavoriteIds(ids);
-    } catch (err: any) {
-      setMsg(err?.message || "Could not load favorites");
+      const ids = await apiGet("/api/favorites/ids");
+      setFavoriteIds(Array.isArray(ids) ? ids : []);
+    } catch {
+      setFavoriteIds([]);
     }
   }
 
@@ -124,7 +115,6 @@ export default function WorkoutsPage() {
   }, []);
 
   const bodyPartOptions = useMemo(() => {
-    // samla unika från focus
     const set = new Set<string>();
     items.forEach((w) => (w.focus ?? []).forEach((f) => set.add(f)));
     return ["Any", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
@@ -140,18 +130,14 @@ export default function WorkoutsPage() {
         (w.focus ?? []).some((x) => x.toLowerCase().includes(q)) ||
         (w.position ?? []).some((x) => x.toLowerCase().includes(q));
 
-      const matchesBody =
-        bodyPart === "Any" || (w.focus ?? []).some((x) => x === bodyPart);
-
-      const matchesLevel =
-        level === "Any" || w.levelText === level;
+      const matchesBody = bodyPart === "Any" || (w.focus ?? []).some((x) => x === bodyPart);
+      const matchesLevel = level === "Any" || w.levelText === level;
 
       const matchesPos =
         position === "Any" ||
         (w.position ?? []).some((x) => x.toLowerCase().includes(position.toLowerCase()));
 
-      const matchesFloor =
-        !floorFriendlyOnly || w.floorFriendly === true;
+      const matchesFloor = !floorFriendlyOnly || w.floorFriendly === true;
 
       return matchesQuery && matchesBody && matchesLevel && matchesPos && matchesFloor;
     });
@@ -164,14 +150,13 @@ export default function WorkoutsPage() {
   async function toggle(id: string) {
     try {
       if (isFav(id)) {
-        await apiDelete(`/api/favorites/${id}`);
+        await apiDelete(`/api/favorites/${encodeURIComponent(id)}`);
         setFavoriteIds((prev) => prev.filter((x) => x !== id));
       } else {
-        await apiPost(`/api/favorites/${id}`);
+        await apiPost(`/api/favorites/${encodeURIComponent(id)}`);
         setFavoriteIds((prev) => [...prev, id]);
-        // valfri toast-liknande msg
         setMsg("Saved to Favorites");
-        setTimeout(() => setMsg(null), 1500);
+        window.setTimeout(() => setMsg(null), 1500);
       }
     } catch (err: any) {
       setMsg(err?.message || "Toggle failed");
@@ -179,38 +164,37 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fbf7f2] text-[#1f1b16]">
-      <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="rounded-full p-2 hover:bg-black/5" aria-label="Back">
+          <Link
+            href="/"
+            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+            aria-label="Back"
+          >
             <ArrowLeft className="h-6 w-6" />
           </Link>
-          <h1 className="font-serif text-4xl">Search sessions</h1>
+          <h1 className="font-serif text-3xl sm:text-4xl">Search sessions</h1>
         </div>
 
         {/* Search input */}
-        <div className="mt-6 flex items-center gap-3 rounded-full bg-[#efe7de] px-5 py-4">
-          <Search className="h-6 w-6 text-[#6e655c]" />
+        <div className="mt-5 flex items-center gap-3 rounded-full bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)] px-5 py-4 sm:mt-6">
+          <Search className="h-6 w-6 text-[var(--muted)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for sessions (e.g., knees, seated)"
-            className="w-full bg-transparent text-lg text-[#3a332c] placeholder:text-[#7a7066] focus:outline-none"
+            className="w-full bg-transparent text-base text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none sm:text-lg"
           />
         </div>
 
         {/* Filters card */}
-        <div className="mt-7 rounded-2xl bg-[#e0d6cc] p-6">
-          <div className="font-serif text-4xl">Filters</div>
+        <div className="mt-6 rounded-2xl bg-[var(--card)] p-4 sm:mt-7 sm:p-6">
+          <div className="font-serif text-3xl sm:text-4xl">Filters</div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <SelectLike
-              label="Body part"
-              value={bodyPart}
-              options={bodyPartOptions}
-              onChange={setBodyPart}
-            />
+          <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 md:grid-cols-3">
+            <SelectLike label="Body part" value={bodyPart} options={bodyPartOptions} onChange={setBodyPart} />
             <SelectLike
               label="Level"
               value={level}
@@ -225,89 +209,85 @@ export default function WorkoutsPage() {
             />
           </div>
 
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-[#6b5648] bg-white/30 px-5 py-4">
-            <div className="font-serif text-3xl">Floor-friendly</div>
-            <Toggle
-              checked={floorFriendlyOnly}
-              onChange={setFloorFriendlyOnly}
-            />
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-4 sm:mt-5 sm:px-5">
+            <div className="font-serif text-2xl sm:text-3xl">Floor-friendly</div>
+            <Toggle checked={floorFriendlyOnly} onChange={setFloorFriendlyOnly} />
           </div>
         </div>
 
         {/* Results */}
-        <div className="mt-10 flex items-baseline justify-between">
-          <div className="font-serif text-4xl">Results ({filtered.length})</div>
+        <div className="mt-8 flex items-baseline justify-between sm:mt-10">
+          <div className="font-serif text-3xl sm:text-4xl">Results ({filtered.length})</div>
         </div>
 
         {msg && (
-          <div className="mt-4 rounded-xl bg-lime-300/70 px-5 py-3 font-serif text-2xl">
+          <div className="mt-4 rounded-xl bg-lime-300/70 px-5 py-3 font-serif text-xl sm:text-2xl text-black">
             {msg}
           </div>
         )}
 
-        <div className="mt-6 space-y-5">
-          {filtered.map((w) => (
-            <div
-              key={w.id}
-              className="rounded-2xl border border-[#6b5648] bg-white/40 p-5"
-            >
-              <div className="flex items-center gap-5">
-                {/* thumb */}
-                <Link href={`/workouts/${w.slug}`} className="block">
-                  <div className="relative h-28 w-28 overflow-hidden rounded-xl bg-black/5">
-                    {w.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={w.imageUrl}
-                        alt={w.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : null}
+        <div className="mt-6 space-y-6">
+          {filtered.map((w) => {
+            const href = `/workouts/${w.slug}`;
+            const fav = isFav(w.id);
 
-                    {/* play overlay */}
-                    <div className="absolute inset-0 grid place-items-center">
-                      <div className="grid h-12 w-12 place-items-center rounded-full bg-black/40">
-                        <Play className="h-6 w-6 text-white" />
+            return (
+              <article
+                key={w.id}
+                className="overflow-hidden rounded-3xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)]"
+              >
+                <div className="relative">
+                  <Link href={href} className="block" aria-label={`Open ${w.title}`}>
+                    <div className="relative aspect-[16/10] w-full bg-black/5 dark:bg-white/5 sm:aspect-auto sm:h-28">
+                      {w.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={w.imageUrl}
+                          alt={w.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : null}
+
+                      <div className="absolute inset-0 grid place-items-center">
+                        <div className="grid h-14 w-14 place-items-center rounded-full bg-black/40 backdrop-blur-sm sm:h-12 sm:w-12">
+                          <Play className="h-7 w-7 text-white sm:h-6 sm:w-6" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
 
-                {/* text */}
-                <Link href={`/workouts/${w.slug}`} className="flex-1">
-                  <div className="font-serif text-3xl leading-tight">
-                    {w.title}
-                  </div>
-                  <div className="mt-2 text-2xl text-[#6e655c]">
-                    {w.minutes} min · {w.levelText}
-                    {w.tagsText ? ` · ${w.tagsText}` : ""}
-                  </div>
-                </Link>
+                  <button
+                    onClick={() => toggle(w.id)}
+                    className="absolute right-3 top-3 rounded-full bg-white/70 p-2 backdrop-blur-sm hover:bg-white/85 dark:bg-white/10 dark:hover:bg-white/15"
+                    aria-label={fav ? "Unfavorite" : "Favorite"}
+                    title={fav ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Heart className="h-6 w-6 sm:h-8 sm:w-8" fill={fav ? "currentColor" : "none"} />
+                  </button>
+                </div>
 
-                {/* heart */}
-                <button
-                  onClick={() => toggle(w.id)}
-                  className="rounded-full p-2 hover:bg-black/5"
-                  aria-label={isFav(w.id) ? "Unfavorite" : "Favorite"}
-                >
-                  <Heart
-                    className="h-9 w-9"
-                    fill={isFav(w.id) ? "currentColor" : "none"}
-                  />
-                </button>
-              </div>
-            </div>
-          ))}
+                <div className="p-5 sm:p-6">
+                  <Link href={href} className="block">
+                    <h2 className="font-serif text-2xl leading-tight sm:text-3xl">{w.title}</h2>
+                    <div className="mt-2 text-lg text-[var(--muted)] sm:text-2xl">
+                      {w.minutes} min · {w.levelText}
+                      {w.tagsText ? ` · ${w.tagsText}` : ""}
+                    </div>
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
-        {/* Bottom spacing */}
         <div className="h-10" />
       </div>
     </div>
   );
 }
 
-/** Ser ut som dropdown-knapparna i bilden (enkel UI, ej native select-look) */
+/** dropdown-look */
 function SelectLike({
   label,
   value,
@@ -319,12 +299,26 @@ function SelectLike({
   options: string[];
   onChange: (v: string) => void;
 }) {
+  const id = `select-${label.toLowerCase().replace(/\s+/g, "-")}`;
+
   return (
     <div className="relative">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+
       <select
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-2xl border border-[#6b5648] bg-white/30 px-5 py-4 pr-12 font-serif text-3xl focus:outline-none focus:ring-2 focus:ring-[#6b5648]/20"
+        className={[
+          "w-full appearance-none rounded-2xl border border-[var(--accent)]",
+          "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
+          "px-4 py-3 pr-12 font-serif text-2xl sm:px-5 sm:py-4 sm:text-3xl",
+          "text-[var(--ink)]",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20",
+          "bg-none !bg-none [background-image:none]",
+        ].join(" ")}
       >
         {options.map((o) => (
           <option key={o} value={o}>
@@ -333,8 +327,7 @@ function SelectLike({
         ))}
       </select>
 
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-7 w-7 -translate-y-1/2 text-[#1f1b16]" />
-      <span className="sr-only">{label}</span>
+      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[var(--ink)] sm:h-7 sm:w-7" />
     </div>
   );
 }
@@ -351,15 +344,17 @@ function Toggle({
       type="button"
       onClick={() => onChange(!checked)}
       className={[
-        "relative h-12 w-20 rounded-full border border-[#6b5648] transition",
-        checked ? "bg-[#6b5648]" : "bg-white/40",
+        "relative h-11 w-18 rounded-full border transition sm:h-12 sm:w-20",
+        "border-[var(--accent)]",
+        checked ? "bg-[var(--accent)]" : "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
       ].join(" ")}
       aria-pressed={checked}
+      aria-label="Toggle floor-friendly"
     >
       <span
         className={[
-          "absolute top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white transition",
-          checked ? "left-9" : "left-1",
+          "absolute top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-white transition sm:h-10 sm:w-10",
+          checked ? "left-8 sm:left-9" : "left-1",
         ].join(" ")}
       />
     </button>
