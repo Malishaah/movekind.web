@@ -3,6 +3,98 @@
 Accessible workout web app with an **Umbraco headless backend** and a **modern Next.js frontend**. Runs locally or in Docker with HTTPS inside the container for auth flows.
 
 ---
+# ✅ Checklista – Betygskriterier
+
+## Godkänt (G)
+
+### Planering & Research
+- [*] Genomfört en **noggrann målgruppsanalys**
+- [*] Använt ett **projekthanteringsverktyg** (t.ex. Trello, Linear, Jira, GitHub Projects) med backlog och struktur
+
+### Design & Prototyping
+- [*] Skapat **wireframes i Figma**
+- [*] Skapat en **prototyp i Figma** som följer UX/UI-principer
+- [*] Designen är **responsiv för minst två skärmstorlekar**
+- [*] Designen följer **WCAG 2.1**
+
+### Applikationsutveckling
+- [*] Utvecklat med ett **modernt JavaScript-ramverk** (t.ex. React, Vue, Next.js)
+- [*] Använder **databas** för lagring och hämtning av data
+- [*] Implementerat **state-hantering**
+- [*] Skapat **dynamiska och interaktiva komponenter**
+- [*] Följer **WCAG 2.1** i implementationen
+- [*] Använder **semantisk HTML**
+- [*] **Webbapp:** Responsiv och fungerar korrekt på minst två skärmstorlekar (mobil + desktop)
+- [ ] **Native mobilapp (om relevant):** Anpassad för olika skärmstorlekar och orienteringar
+- [*] **README** innehåller:
+  - [*] Hur projektet körs
+  - [*] Publik länk
+  - [*] Checklista med uppfyllda betygskriterier
+
+### Versionshantering
+- [*] Använder **Git**
+- [*] Har ett **GitHub-repo**
+
+### Slutrapport (2–3 sidor)
+- [*] **Abstract på engelska**
+- [*] Beskrivning av **tech stack + motivering**
+- [*] Dokumentation av **arbetsprocess, planering och research**
+
+### Deploy
+- [*] Projektet är **hostat och publikt tillgängligt**
+
+### Helhetsupplevelse
+- [*] Inga tekniska fel (t.ex. döda länkar eller kraschande sidor)
+- [*] **Konsekvent design**
+- [*] **Obruten och tydlig navigation**
+
+---
+
+## Väl Godkänt (VG)
+
+### Grundkrav
+- [*] Alla kriterier för **Godkänt (G)** är uppfyllda
+
+### Design & Prototyping (VG)
+- [*] Prototypen innehåller **interaktivitet** som visar användarflöden
+- [*] Prototypen är **väldigt lik den färdiga produkten**
+- [*] Designen följer **WCAG 2.1 nivå A och AA utan undantag**
+
+### Applikationsutveckling (VG)
+- [ ] Använder **global state management** (t.ex. Redux eller Pinia)
+- [*] Koden följer **WCAG 2.1 nivå A och AA utan undantag**
+- [*] Testad i **WebAIM WAVE** utan errors eller warnings
+- [*] Appen är **optimerad**:
+  - [*] Återanvänder komponenter och kod
+  - [*] Använder rimliga filformat och filstorlekar
+  - [*] Implementerar prestandaoptimering där det behövs
+- [*] Implementerat **CRUD** (Create, Read, Update, Delete)
+- [*] Säker hantering av användardata vid CRUD-operationer
+- [*] Implementerat **säker autentisering** (OAuth, JWT eller Firebase Auth)
+- [*] **Webbapp:** Fullt responsiv från mobil till stora skärmar
+- [*] README förklarar:
+  - [*] Tekniska val (varför)
+  - [*] Implementation av viktiga funktioner (hur)
+
+### Versionshantering (VG)
+- [ ] Arbetar med **feature branches**
+- [ ] Använder **pull requests** innan merge till main
+- [ ] Har **tydliga och informativa commit-meddelanden**
+
+### Deploy (VG)
+- [ ] Har **automatiserat bygge och deploy (CI/CD)**
+
+### Slutrapport (3–6 sidor)
+- [*] Djupgående analys av hela arbetsprocessen
+- [*] Reflektion kring utmaningar, lösningar och lärdomar
+- [*] Motivering av val av tekniker och verktyg
+- [*] Förklaring av UX/UI- och tillgänglighetsbeslut
+
+### Helhetsupplevelse (VG)
+- [*] Professionell och optimerad användarupplevelse
+- [*] Minimala laddningstider
+- [*] Tydlig feedback vid alla användarinteraktioner
+- [*] Testad på flera enheter och webbläsare
 
 ## Contents
 

@@ -1,5 +1,5 @@
 // app/lib/umbraco.ts
-const UMBRACO_BASE_URL = process.env.UMBRACO_BASE_URL ?? "https://movekindb.bovision.se";
+const UMBRACO_BASE_URL = process.env.UMBRACO_BASE_URL ?? "https://api:8443";
 
 const HOP_BY_HOP_HEADERS = [
   "connection",
