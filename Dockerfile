@@ -10,7 +10,6 @@ RUN npm run build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 RUN apk add --no-cache curl
 COPY --from=build /app ./
 EXPOSE 3000

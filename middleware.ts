@@ -6,44 +6,45 @@ const PUBLIC_PATHS = [
   "/auth",
   "/login",
   "/register",
-  "/profile",
-  "/workouts",
-  "/favorites",
-  "/api/auth/login",
-  "/api/auth/register",
   "/_next",
   "/favicon.ico",
   "/icons",
   "/media",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.webmanifest",
 ];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // tillåt public paths
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  // 1) Släpp API rakt igenom (annars kan /api/auth/me låsa sig i redirect-loop)
+  if (pathname.startsWith("/api")) return NextResponse.next();
 
-  // kolla session via Next API (proxy till Umbraco)
+  // 2) Offentliga paths
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next();
+
+  // 3) Snabbt: kolla auth-cookie direkt (Umbraco Members)
+  const hasIdentityCookie = req.cookies.has(".AspNetCore.Identity.Application");
+  if (hasIdentityCookie) return NextResponse.next();
+
+  // 4) Fallback: dubbelkolla session via /api/auth/me (med cookies vidarebefordrade)
   try {
-    const me = await fetch(new URL("/api/auth/me", req.url), {
+    const meRes = await fetch(new URL("/api/auth/me", req.url), {
       headers: { cookie: req.headers.get("cookie") ?? "" },
+      cache: "no-store",
     });
-
-    if (me.status === 200) {
-      return NextResponse.next(); // inloggad
-    }
+    if (meRes.ok) return NextResponse.next();
   } catch {
-    // fallthrough = behandla som inte inloggad
+    // ignorera – behandla som ej inloggad
   }
 
+  // 5) Inte inloggad → skicka till /auth
   const url = req.nextUrl.clone();
   url.pathname = "/auth";
   url.searchParams.set("next", pathname);
   return NextResponse.redirect(url);
 }
 
-export const config = {
-  matcher: ["/((?!_next|static).*)"], // allt utom Next statiska
-};
+// Matcha allt utom Nexts statiska
+export const config = { matcher: ["/((?!_next|static).*)"] };
