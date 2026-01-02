@@ -68,14 +68,13 @@ export default function WorkoutsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: DeliveryResponse = await res.json();
 
-      const umbracoOrigin = process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ?? "https://localhost:44367";
 
       const mapped: Workout[] = (data.items ?? [])
         .filter((x) => x.contentType === "workout")
         .map((x) => {
           const p = x.properties ?? {};
           const img = p.image?.[0]?.url;
-          const imageUrl = img ? new URL(img, umbracoOrigin).toString() : null;
+          const imageUrl = img ? img : "";
 
           const slug = x.id;
           const title = p.title ?? x.name;

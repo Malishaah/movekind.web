@@ -3,7 +3,7 @@
 ## Setup
 1. Copy `.env.example` to `.env.local` and adjust:
 ```
-NEXT_PUBLIC_UMBRACO_URL=https://localhost:44367
+NEXT_PUBLIC_UMBRACO_URL=https://api:8443
 ```
 For self-signed TLS during local dev, run:
 ```

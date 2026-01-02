@@ -111,12 +111,9 @@ export default function WorkoutDetailPage() {
 
   const p = data?.properties;
 
-  const umbracoOrigin =
-    process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ??
-    process.env.NEXT_PUBLIC_UMBRACO_URL ??
-    "https://localhost:44367";
 
-  const heroImg = p?.image?.[0]?.url ? new URL(p.image[0].url, umbracoOrigin).toString() : null;
+
+  const heroImg = p?.image?.[0]?.url ? p.image[0].url : null;
 
   const title = p?.title ?? data?.name ?? "Workout";
   const level = p?.levelEasyMediumAdvanced ?? "Easy";

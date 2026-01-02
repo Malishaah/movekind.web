@@ -9,8 +9,8 @@ export type UmbracoLink = {
 
 export function absoluteMedia(url?: string | null) {
   if (!url) return "";
-  const base = process.env.NEXT_PUBLIC_UMBRACO_URL?.replace(/\/+$/, "") ?? "";
-  return `${base}${url.startsWith("/") ? url : `/${url}`}`;
+  else
+    return url;
 }
 
 // Minimal renderer för Delivery API Rich Text

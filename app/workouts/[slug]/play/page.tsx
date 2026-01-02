@@ -150,18 +150,15 @@ export default function WorkoutPlayPage() {
     }
   }
 
-  const umbracoOrigin =
-    process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ??
-    process.env.NEXT_PUBLIC_UMBRACO_URL ??
-    "https://localhost:44367";
+
 
   const title = data?.properties?.title ?? data?.name ?? "Workout";
   const level = data?.properties?.levelEasyMediumAdvanced ?? "Easy";
 
   const videoUrl = useMemo(() => {
     const v = data?.properties?.video;
-    return v ? new URL(v, umbracoOrigin).toString() : "";
-  }, [data, umbracoOrigin]);
+    return v ? v : "";
+  }, [data]);
 
   const steps: Step[] = useMemo(() => {
     const raw =

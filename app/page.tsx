@@ -122,18 +122,13 @@ export default function HomePage() {
     const res = await fetch("/api/workouts", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data: DeliveryResponse = await res.json();
-    const umbracoOrigin =
-      process.env.NEXT_PUBLIC_UMBRACO_ORIGIN ??
-      process.env.NEXT_PUBLIC_UMBRACO_URL ??
-      "https://localhost:44367";
-
     const mapped: Session[] = (data.items ?? [])
       .filter((x) => x.contentType === "workout")
       .map((x) => {
         const p = x.properties ?? {};
         const img = p.image?.[0]?.url ?? "";
         const imgalt = p.imgalt ?? "";
-        const imageUrl = img ? new URL(img, umbracoOrigin).toString() : "";
+        const imageUrl = img ?? "";
         const title = ((p.title ?? x.id) as string).replaceAll("\\n", "\n");
 
         return {
