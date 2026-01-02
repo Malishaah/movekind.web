@@ -96,6 +96,8 @@ Accessible workout web app with an **Umbraco headless backend** and a **modern N
 - [*] Tydlig feedback vid alla användarinteraktioner
 - [*] Testad på flera enheter och webbläsare
 
+
+
 ## Contents
 
 - Architecture
@@ -124,9 +126,11 @@ Accessible workout web app with an **Umbraco headless backend** and a **modern N
 Umbraco 17 (.NET 10) running on Kestrel. Exposes the Delivery API over:
 - HTTP: `:8080`
 - HTTPS: `:8443`
+- Live: `https://movekindb.bovision.se/umbraco/`
 
 **Frontend (Web)**  
 Next.js 14 (App Router) with TypeScript. Talks to the API over the internal Docker network using the service name `api`.
+- Live `https://movekind.bovision.se`
 
 **DB / Media**  
 SQLite for development with persistent volumes. Media files are mounted. Can switch to PostgreSQL or SQL Server in production.
