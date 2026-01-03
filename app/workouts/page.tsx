@@ -5,16 +5,19 @@ import { useEffect, useMemo, useId, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "@/app/lib/api";
 import { ArrowLeft, Search, ChevronDown, Heart, Play } from "lucide-react";
 
-type LevelUI = "Any" | "Easy" | "Medium" | "Advanced";
-type PositionUI = "Any" | "Seated" | "Standing" | "Lying";
-const ALL = "All";
+type LevelUI = "Any Level" | "Easy" | "Medium" | "Advanced";
+type PositionUI = "Any Position" | "Seated" | "Standing" | "Lying";
+
+const ANY_BODY = "Any body part";
+const ANY_LEVEL: LevelUI = "Any Level";
+const ANY_POS: PositionUI = "Any Position";
 
 type Workout = {
   id: string;
   slug: string;
   title: string;
   minutes: number;
-  levelText: string;
+  levelText: "Easy" | "Medium" | "Advanced";
   tagsText: string;
   imageUrl?: string | null;
   floorFriendly?: boolean;
@@ -43,7 +46,9 @@ type DeliveryItem = {
 type DeliveryResponse = { total: number; items: DeliveryItem[] };
 
 function chipTags(focus?: string[], position?: string[]) {
-  const a = [...(focus ?? []), ...(position ?? [])].map((x) => x?.trim()).filter(Boolean);
+  const a = [...(focus ?? []), ...(position ?? [])]
+    .map((x) => x?.trim())
+    .filter(Boolean);
   return a.slice(0, 2).join(", ");
 }
 
@@ -53,13 +58,20 @@ export default function WorkoutsPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
-  const [bodyPart, setBodyPart] = useState<string>("Any");
-  const [level, setLevel] = useState<LevelUI>("Any");
-  const [position, setPosition] = useState<PositionUI>("Any");
+  const [bodyPart, setBodyPart] = useState<string>(ANY_BODY);
+  const [level, setLevel] = useState<LevelUI>(ANY_LEVEL);
+  const [position, setPosition] = useState<PositionUI>(ANY_POS);
   const [floorFriendlyOnly, setFloorFriendlyOnly] = useState(false);
 
   const searchId = useId();
   const statusId = useId();
+
+  // UI tokens (kräver att du har --panel och --field i CSS)
+  const panel = "bg-[var(--panel)] border border-[var(--line)]";
+  const field = "bg-[var(--field)] border border-[var(--line)]";
+
+  const focusRing =
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/25";
 
   async function loadWorkouts() {
     setMsg(null);
@@ -68,13 +80,11 @@ export default function WorkoutsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: DeliveryResponse = await res.json();
 
-
       const mapped: Workout[] = (data.items ?? [])
         .filter((x) => x.contentType === "workout")
         .map((x) => {
           const p = x.properties ?? {};
-          const img = p.image?.[0]?.url;
-          const imageUrl = img ? img : "";
+          const imageUrl = p.image?.[0]?.url ?? "";
 
           const slug = x.id;
           const title = p.title ?? x.name;
@@ -120,7 +130,7 @@ export default function WorkoutsPage() {
   const bodyPartOptions = useMemo(() => {
     const set = new Set<string>();
     items.forEach((w) => (w.focus ?? []).forEach((f) => set.add(f)));
-    return ["Any", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    return [ANY_BODY, ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -133,12 +143,16 @@ export default function WorkoutsPage() {
         (w.focus ?? []).some((x) => x.toLowerCase().includes(q)) ||
         (w.position ?? []).some((x) => x.toLowerCase().includes(q));
 
-      const matchesBody = bodyPart === "Any" || (w.focus ?? []).some((x) => x === bodyPart);
-      const matchesLevel = level === "Any" || w.levelText === level;
+      const matchesBody =
+        bodyPart === ANY_BODY || (w.focus ?? []).some((x) => x === bodyPart);
+
+      const matchesLevel = level === "Any Level" || w.levelText === level;
 
       const matchesPos =
-        position === "Any" ||
-        (w.position ?? []).some((x) => x.toLowerCase().includes(position.toLowerCase()));
+        position === "Any Position" ||
+        (w.position ?? []).some((x) =>
+          x.toLowerCase().includes(position.toLowerCase())
+        );
 
       const matchesFloor = !floorFriendlyOnly || w.floorFriendly === true;
 
@@ -172,7 +186,7 @@ export default function WorkoutsPage() {
         <header className="flex items-center gap-3">
           <Link
             href="/"
-            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+            className={["rounded-full p-2 hover:opacity-90", focusRing].join(" ")}
             aria-label="Back"
           >
             <ArrowLeft className="h-6 w-6" />
@@ -182,7 +196,7 @@ export default function WorkoutsPage() {
 
         {/* Search input */}
         <section className="mt-5 sm:mt-6" aria-label="Search">
-          <div className="flex items-center gap-3 rounded-full bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)] px-5 py-4">
+          <div className={["flex items-center gap-3 rounded-full px-5 py-4", field].join(" ")}>
             <Search className="h-6 w-6 text-[var(--muted)]" aria-hidden="true" />
             <label htmlFor={searchId} className="sr-only">
               Search for sessions
@@ -192,33 +206,54 @@ export default function WorkoutsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search for sessions (e.g., knees, seated)"
-              className="w-full bg-transparent text-base text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none sm:text-lg"
+              className={[
+                "w-full bg-transparent text-base text-[var(--ink)] placeholder:text-[var(--muted)] sm:text-lg",
+                "focus:outline-none",
+                "border-0 ring-0 outline-none focus:ring-0 focus:border-0",
+              ].join(" ")}
             />
           </div>
         </section>
 
         {/* Filters card */}
-        <section className="mt-6 rounded-2xl bg-[var(--card)] p-4 sm:mt-7 sm:p-6" aria-label="Filters">
-          <h2 className="font-serif text-3xl sm:text-4xl">Filters</h2>
+        <section
+          className={["mt-6 rounded-2xl p-4 sm:mt-7 sm:p-6", panel].join(" ")}
+          aria-label="Filters"
+        >
+          <h2 className="font-serif text-xl sm:text-2xl">Filters</h2>
 
           <div className="mt-4 grid gap-3 sm:mt-5 sm:gap-4 md:grid-cols-3">
-            <SelectLike label="Body part" value={bodyPart} options={bodyPartOptions} onChange={setBodyPart} />
+            <SelectLike
+              label="Body part"
+              value={bodyPart}
+              options={bodyPartOptions}
+              onChange={setBodyPart}
+              fieldClass={field}
+            />
             <SelectLike
               label="Level"
               value={level}
-              options={["Any", "Easy", "Medium", "Advanced"]}
+              options={["Any Level", "Easy", "Medium", "Advanced"]}
               onChange={(v) => setLevel(v as LevelUI)}
+              fieldClass={field}
             />
             <SelectLike
               label="Position"
               value={position}
-              options={["Any", "Seated", "Standing", "Lying"]}
+              options={["Any Position", "Seated", "Standing", "Lying"]}
               onChange={(v) => setPosition(v as PositionUI)}
+              fieldClass={field}
             />
           </div>
 
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-4 sm:mt-5 sm:px-5">
-            <div className="font-serif text-2xl sm:text-3xl">Floor-friendly</div>
+          {/* ✅ floor-friendly row with darker border */}
+          <div
+            className={[
+              "mt-4 flex items-center justify-between gap-4 rounded-2xl px-4 py-4 sm:mt-5 sm:px-5",
+              "bg-[var(--panel)] border border-black/15 dark:border-white/15",
+            ].join(" ")}
+          >
+            <div className="font-serif text-lg sm:text-xl">Floor-friendly</div>
             <Toggle checked={floorFriendlyOnly} onChange={setFloorFriendlyOnly} />
           </div>
         </section>
@@ -229,79 +264,91 @@ export default function WorkoutsPage() {
             <h2 className="font-serif text-3xl sm:text-4xl">Results ({filtered.length})</h2>
           </div>
 
-          {/* Status message for screen readers */}
           <p id={statusId} className="sr-only" aria-live="polite">
             {msg ? msg : `Showing ${filtered.length} results`}
           </p>
 
           {msg && (
-            <div className="mt-4 rounded-xl bg-lime-300/70 px-5 py-3 font-serif text-xl sm:text-2xl text-black">
+            <div className="mt-4 rounded-xl bg-[var(--panel)] px-5 py-3 font-serif text-lg sm:text-xl">
               {msg}
             </div>
           )}
-<div className="mt-6 space-y-6">
-  {filtered.map((w) => {
-    const href = `/workouts/${w.slug}`;
-    const fav = isFav(w.id);
 
-    return (
-      <article
-        key={w.id}
-        className="overflow-hidden rounded-3xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)]"
-      >
-        <div className="relative">
-          {/* EN länk runt bild + text */}
-          <Link
-            href={href}
-            className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-            aria-label={`Open ${w.title}`}
-          >
-            <div className="relative aspect-[16/10] w-full bg-black/5 dark:bg-white/5 sm:aspect-auto sm:h-28">
-              {w.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={w.imageUrl}
-                  alt={w.title}
-                  className="h-full w-full object-cover transition group-hover:scale-[1.01]"
-                  loading="lazy"
-                />
-              ) : null}
+          <div className="mt-6 space-y-6">
+            {filtered.map((w) => {
+              const href = `/workouts/${w.slug}`;
+              const fav = isFav(w.id);
 
-              <div className="pointer-events-none absolute inset-0 grid place-items-center" aria-hidden="true">
-                <div className="grid h-14 w-14 place-items-center rounded-full bg-black/40 backdrop-blur-sm sm:h-12 sm:w-12">
-                  <Play className="h-7 w-7 text-white sm:h-6 sm:w-6" />
-                </div>
-              </div>
-            </div>
+              return (
+                <article key={w.id} className={["overflow-hidden rounded-3xl", panel].join(" ")}>
+                  <div className="relative">
+                    <Link
+                      href={href}
+                      className={["block group", focusRing].join(" ")}
+                      aria-label={`Open ${w.title}`}
+                    >
+                      <div className="relative aspect-[16/10] w-full bg-black/5 sm:aspect-auto sm:h-28">
+                        {w.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={w.imageUrl}
+                            alt={w.title}
+                            className="h-full w-full object-cover transition group-hover:scale-[1.01]"
+                            loading="lazy"
+                          />
+                        ) : null}
 
-            <div className="p-5 sm:p-6">
-              <h3 className="font-serif text-2xl leading-tight sm:text-3xl group-hover:underline">
-                {w.title}
-              </h3>
-              <div className="mt-2 text-lg text-[var(--muted)] sm:text-2xl">
-                {w.minutes} min · {w.levelText}
-                {w.tagsText ? ` · ${w.tagsText}` : ""}
-              </div>
-            </div>
-          </Link>
+                        <div
+                          className="pointer-events-none absolute inset-0 grid place-items-center"
+                          aria-hidden="true"
+                        >
+                          <div className="grid h-12 w-12 place-items-center rounded-full bg-black/40 backdrop-blur-sm">
+                            <Play className="h-6 w-6 text-white" />
+                          </div>
+                        </div>
+                      </div>
 
-          {/* Separat interaktiv favorit-knapp (inte inuti länken) */}
-          <button
-            type="button"
-            onClick={() => toggle(w.id)}
-            className="absolute right-3 top-3 rounded-full bg-white/70 p-2 backdrop-blur-sm hover:bg-white/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:bg-white/10 dark:hover:bg-white/15"
-            aria-label={fav ? `Remove ${w.title} from favorites` : `Add ${w.title} to favorites`}
-            aria-pressed={fav}
-            title={fav ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Heart className="h-6 w-6 sm:h-8 sm:w-8" fill={fav ? "currentColor" : "none"} />
-          </button>
-        </div>
-      </article>
-    );
-  })}
-</div>
+                      <div className="p-5 sm:p-6">
+                        <h3 className="font-serif text-2xl leading-tight sm:text-3xl group-hover:underline">
+                          {w.title}
+                        </h3>
+                        <div className="mt-2 text-lg text-[var(--muted)] sm:text-xl">
+                          {w.minutes} min · {w.levelText}
+                          {w.tagsText ? ` · ${w.tagsText}` : ""}
+                        </div>
+                      </div>
+                    </Link>
 
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggle(w.id);
+                      }}
+                      className={[
+                        "absolute right-3 top-3 rounded-full p-2 backdrop-blur-sm hover:opacity-90",
+                        field,
+                        focusRing,
+                      ].join(" ")}
+                      aria-label={
+                        fav
+                          ? `Remove ${w.title} from favorites`
+                          : `Add ${w.title} to favorites`
+                      }
+                      aria-pressed={fav}
+                      title={fav ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      <Heart
+                        className="h-6 w-6 sm:h-7 sm:w-7"
+                        fill={fav ? "currentColor" : "none"}
+                      />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </section>
 
         <div className="h-10" />
@@ -310,17 +357,18 @@ export default function WorkoutsPage() {
   );
 }
 
-/** dropdown-look */
 function SelectLike({
   label,
   value,
   options,
   onChange,
+  fieldClass,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  fieldClass: string;
 }) {
   const selectId = useId();
 
@@ -335,12 +383,14 @@ function SelectLike({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={[
-          "w-full appearance-none rounded-2xl border border-[var(--accent)]",
-          "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
-          "px-4 py-3 pr-12 font-serif text-2xl sm:px-5 sm:py-4 sm:text-3xl",
+          "w-full appearance-none rounded-xl",
+          fieldClass,
+          "px-4 py-2.5 pr-10 font-serif text-lg sm:text-xl",
           "text-[var(--ink)]",
-          "focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20",
-          "bg-none !bg-none [background-image:none]",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/25",
+          // skyddar mot @tailwindcss/forms default
+          "ring-0 outline-none focus:ring-2",
+          "[background-image:none]",
         ].join(" ")}
       >
         {options.map((o) => (
@@ -351,7 +401,7 @@ function SelectLike({
       </select>
 
       <ChevronDown
-        className="pointer-events-none absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 text-[var(--ink)] sm:h-7 sm:w-7"
+        className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]"
         aria-hidden="true"
       />
     </div>
@@ -366,18 +416,21 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={[
-        "relative h-11 w-18 rounded-full border transition sm:h-12 sm:w-20",
-        "border-[var(--accent)]",
-        checked
-          ? "bg-[var(--accent)]"
-          : "bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.08)]",
+        "relative h-10 w-[68px] rounded-full border transition-colors",
+        // ✅ lite mer "svart" runt i light mode, mjuk i dark
+        "border-black/25 dark:border-white/20",
+        checked ? "bg-[var(--accent)]" : "bg-[var(--field)]",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/25",
+        "shadow-sm",
       ].join(" ")}
       aria-label="Filter: floor-friendly only"
     >
       <span
         className={[
-          "absolute top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-white transition sm:h-10 sm:w-10",
-          checked ? "left-8 sm:left-9" : "left-1",
+          "absolute top-1/2 h-8 w-8 -translate-y-1/2 rounded-full transition",
+          "bg-white dark:bg-[color:rgba(255,255,255,0.92)]",
+          "border border-black/10 dark:border-white/15 shadow-sm",
+          checked ? "left-[34px]" : "left-1",
         ].join(" ")}
       />
     </button>

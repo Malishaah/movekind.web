@@ -54,18 +54,6 @@ export default function LoginPage() {
 
               <LoginForm />
             </div>
-
-            <p className="mt-4 text-center text-xs text-zinc-500">
-              By continuing you agree to our{" "}
-              <Link href="/terms" className="hover:underline">
-                Terms
-              </Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="hover:underline">
-                Privacy Policy
-              </Link>
-              .
-            </p>
           </div>
         </div>
       </div>

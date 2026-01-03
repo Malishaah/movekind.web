@@ -96,12 +96,36 @@ export default function Header({
 
     return [];
   }, [menu, auth]);
+const normalizePath = (p: string) => {
+  if (!p) return "";
+  // ta bort query/hash
+  let x = p.split(/[?#]/)[0];
 
-  const isActive = (href: string) => {
-    if (!href || href === "#") return false;
-    const path = href.split(/[?#]/)[0];
-    return path === pathname;
-  };
+  // se till att börja med /
+  if (!x.startsWith("/")) x = "/" + x;
+
+  // lowercase (umbraco kan ge /Workouts)
+  x = x.toLowerCase();
+
+  // ta bort trailing slashes (men behåll "/" som är root)
+  if (x.length > 1) x = x.replace(/\/+$/, "");
+
+  return x;
+};
+const isActive = (href: string) => {
+  if (!href || href === "#") return false;
+
+  const hrefPath = normalizePath(href);
+  const current = normalizePath(pathname ?? "");
+
+  if (!hrefPath || !current) return false;
+
+  // exakt match
+  if (current === hrefPath) return true;
+
+  // prefix match för subroutes: /workouts -> /workouts/slug
+  return current.startsWith(hrefPath + "/");
+};
 
   // ✅ Stäng menyn när man byter route
   useEffect(() => {

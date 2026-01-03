@@ -75,9 +75,21 @@ export default function WorkoutPlayPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [stepElapsed, setStepElapsed] = useState(0);
 
-  // ✅ Captions / instruction overlay
+  // keep a ref to avoid stale state comparisons on timeupdate
+  const stepIndexRef = useRef(0);
+  useEffect(() => {
+    stepIndexRef.current = stepIndex;
+  }, [stepIndex]);
+
+  // captions / instruction overlay
   const [captionsOn, setCaptionsOn] = useState(true);
   const [savingCaptions, setSavingCaptions] = useState(false);
+
+  // UI tokens
+  const panel = "bg-[var(--panel)] border border-[var(--line)]";
+  const field = "bg-[var(--field)] border border-[var(--line)]";
+  const ring = "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/25";
+  const ghostHover = "hover:bg-black/5 dark:hover:bg-white/10";
 
   // Load workout
   useEffect(() => {
@@ -92,10 +104,12 @@ export default function WorkoutPlayPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const item: DeliveryWorkout = await res.json();
-        if (alive) {
-          setData(item);
-          setVideoDuration(item?.properties?.duration ?? 0);
-        }
+        if (!alive) return;
+
+        setData(item);
+        setVideoDuration(item?.properties?.duration ?? 0);
+        setStepIndex(0);
+        setStepElapsed(0);
       } catch (e: any) {
         if (alive) setErr(e?.message ?? "Failed to load workout");
       } finally {
@@ -108,7 +122,7 @@ export default function WorkoutPlayPage() {
     };
   }, [slug]);
 
-  // ✅ Load captionsOnByDefault from profile (if logged in)
+  // Load captionsOnByDefault from profile (if logged in)
   useEffect(() => {
     let alive = true;
 
@@ -116,10 +130,9 @@ export default function WorkoutPlayPage() {
       try {
         const me: any = await apiGet("/api/members/me");
         if (!alive) return;
-        // captionsOnByDefault = true => show overlay
         setCaptionsOn(!!me?.captionsOnByDefault);
       } catch {
-        // not logged in => keep default true (or set false if you prefer)
+        // not logged in => keep default
       }
     })();
 
@@ -132,25 +145,24 @@ export default function WorkoutPlayPage() {
     const next = !captionsOn;
     setCaptionsOn(next);
 
-    // Spara till profil om endpoint finns/kräver login.
-    // Om din backend kräver "hela profilen", gör GET + PUT merge (se kommentaren nedan).
     try {
       setSavingCaptions(true);
 
-      // ✅ Variant A: PATCH-lik PUT (funkar om din backend accepterar partial)
-      await apiPut("/api/members/me", { captionsOnByDefault: next });
-
-      // ✅ Variant B (om du får 400/valideringsfel): uncommenta istället
-      // const me: any = await apiGet("/api/members/me");
-      // await apiPut("/api/members/me", { ...me, captionsOnByDefault: next });
+      // Try partial PUT first (if your backend accepts it)
+      try {
+        const me: any = await apiGet("/api/members/me");
+        await apiPut("/api/members/me", { ...me,captionsOnByDefault: next });
+      } catch {
+        // Fallback: merge full profile then PUT
+        const me: any = await apiGet("/api/members/me");
+        await apiPut("/api/members/me", { ...me, captionsOnByDefault: next });
+      }
     } catch {
-      // om save failar, låt ändå UI vara togglad (eller revert om du vill)
+      // keep UI toggled even if save fails (or revert if you prefer)
     } finally {
       setSavingCaptions(false);
     }
   }
-
-
 
   const title = data?.properties?.title ?? data?.name ?? "Workout";
   const level = data?.properties?.levelEasyMediumAdvanced ?? "Easy";
@@ -159,7 +171,11 @@ export default function WorkoutPlayPage() {
     const v = data?.properties?.video;
     return v ? v : "";
   }, [data]);
-
+function compactText(s: string) {
+  return (s ?? "")
+    .replace(/\s+/g, " ") // allt whitespace -> ett space
+    .trim();
+}
   const steps: Step[] = useMemo(() => {
     const raw =
       (data?.properties?.steps?.items ?? [])
@@ -190,15 +206,12 @@ export default function WorkoutPlayPage() {
 
     return raw.map((s, i) => {
       const next = raw[i + 1];
-      const inferred = next
-        ? Math.max(1, next.startAt - s.startAt)
-        : Math.max(1, end - s.startAt);
-
+      const inferred = next ? Math.max(1, next.startAt - s.startAt) : Math.max(1, end - s.startAt);
       return { ...s, timeSeconds: s.timeSeconds > 0 ? s.timeSeconds : inferred };
     });
   }, [data, videoDuration]);
 
-  const current = steps[stepIndex];
+  const current = steps[stepIndex] ?? null;
 
   const overallTotal = useMemo(
     () => steps.reduce((acc, s) => acc + (s.timeSeconds ?? 0), 0),
@@ -214,33 +227,42 @@ export default function WorkoutPlayPage() {
 
   const overallProgress = overallTotal > 0 ? Math.min(1, overallElapsed / overallTotal) : 0;
   const stepProgress =
-    (current?.timeSeconds ?? 0) > 0
-      ? Math.min(1, stepElapsed / (current!.timeSeconds || 1))
-      : 0;
+    (current?.timeSeconds ?? 0) > 0 ? Math.min(1, stepElapsed / (current!.timeSeconds || 1)) : 0;
 
   const onTimeUpdate = () => {
     const v = videoRef.current;
-    if (!v || steps.length === 0) return;
+    if (!v) return;
+    if (steps.length === 0) return;
 
-    const t = v.currentTime;
-    const idx = findLastIndexByStartAt(steps, t);
+    const t = v.currentTime || 0;
+    const idx = Math.min(steps.length - 1, Math.max(0, findLastIndexByStartAt(steps, t)));
 
-    if (idx !== stepIndex) setStepIndex(idx);
+    // avoid stale compare
+    if (idx !== stepIndexRef.current) {
+      stepIndexRef.current = idx;
+      setStepIndex(idx);
+    }
 
     const elapsedInStep = Math.max(0, t - steps[idx].startAt);
     const clamped = Math.min(steps[idx].timeSeconds, elapsedInStep);
     setStepElapsed(clamped);
   };
 
-  if (loading)
-    return <div className="min-h-screen bg-[var(--bg)] p-6 text-[var(--ink)]">Loading…</div>;
-
-  if (err)
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg)] p-6 text-red-700">
+      <div className="min-h-screen bg-[var(--bg)] p-6 text-[var(--ink)]" role="status" aria-live="polite">
+        Loading…
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] p-6 text-red-700" role="alert">
         Error: {err}
       </div>
     );
+  }
 
   if (!data) return null;
 
@@ -251,38 +273,44 @@ export default function WorkoutPlayPage() {
         <div className="flex items-center justify-between gap-3">
           <Link
             href={`/workouts/${slug}`}
-            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+            className={["rounded-full p-2", ghostHover, ring].join(" ")}
             aria-label="Back"
           >
             <ArrowLeft className="h-6 w-6" />
           </Link>
 
-          <h1 className="min-w-0 flex-1 px-1 font-serif text-xl leading-tight sm:px-4 sm:text-3xl">
+          <h1 className="min-w-0 flex-1 px-1 font-serif text-lg leading-tight sm:px-4 sm:text-3xl">
             <span className="block truncate">{title}</span>
-            <span className="block text-[var(--muted)]">{level}</span>
+            <span className="block text-sm sm:text-base text-[var(--muted)]">{level}</span>
           </h1>
 
-          {/* ✅ Replace Settings with Instruction toggle */}
-          <button
-            type="button"
-            onClick={toggleCaptions}
-            disabled={savingCaptions}
-            className={[
-              "rounded-full border border-[var(--accent)] px-4 py-2 font-serif text-sm sm:text-base",
-              "hover:bg-black/5 dark:hover:bg-white/10 transition",
-              captionsOn ? "bg-[var(--accent)] text-white" : "bg-transparent text-[var(--ink)]",
-              savingCaptions ? "opacity-60" : "",
-            ].join(" ")}
-            aria-label="Toggle instructions"
-            title="Toggle instructions"
-          >
-            {captionsOn ? "Instruction: ON" : "Instruction: OFF"}
-          </button>
+<button
+  type="button"
+  onClick={toggleCaptions}
+  disabled={savingCaptions}
+  className={[
+    "rounded-full px-3 py-2 sm:px-4",
+    "font-serif text-xs sm:text-base",
+    "transition",
+    "border border-[var(--accent)]",
+    ring,
+    "shadow-sm", // gör den synlig i light mode
+    captionsOn
+      ? "bg-[var(--accent)] text-[var(--btnText)]"
+      : "bg-[var(--panel)] text-[var(--ink)] hover:opacity-95",
+    savingCaptions ? "opacity-60" : "",
+  ].join(" ")}
+  aria-label="Toggle instructions"
+  title="Toggle instructions"
+>
+  {captionsOn ? "Instruction: ON" : "Instruction: OFF"}
+</button>
+
         </div>
 
         {/* Video */}
         <div className="mt-4 sm:mt-6">
-          <div className="-mx-4 overflow-hidden bg-black/5 dark:bg-white/5 sm:mx-0 sm:rounded-2xl">
+          <div className={["-mx-4 overflow-hidden sm:mx-0 sm:rounded-2xl", panel].join(" ")}>
             <div className="relative">
               {videoUrl ? (
                 <video
@@ -311,32 +339,36 @@ export default function WorkoutPlayPage() {
                 </div>
               )}
 
-              {/* ✅ Subtitle overlay only if captionsOn */}
+              {/* Instruction overlay */}
               {captionsOn && current?.instruction ? (
-                <div className="pointer-events-none absolute inset-x-0 bottom-20 mx-auto w-[92%] bg-black/55 px-4 py-3 text-center font-serif text-lg text-white sm:bottom-24 sm:w-[82%] sm:px-6 sm:py-4 sm:text-2xl">
-                  {current.instruction}
-                </div>
+<div
+  className={[
+    "pointer-events-none absolute inset-x-0",
+    "bottom-[60px] sm:bottom-[60px]",   // 👈 exakt 10px
+    "mx-auto w-[94%] sm:w-[82%] max-w-3xl",
+    "rounded-xl px-4 py-3 sm:px-6 sm:py-4",
+    "text-center font-serif text-sm sm:text-xl text-white",
+    "bg-black/60 backdrop-blur-sm",
+    "leading-snug",                         
+    "whitespace-pre-wrap",                  
+    "max-h-[28vh] sm:max-h-[24vh] overflow-y-auto", 
+  ].join(" ")}
+>
+  {compactText(current.instruction)}
+</div>
+
               ) : null}
 
-              {/* Step progress bar */}
-              <div className="pointer-events-none absolute inset-x-4 bottom-12 sm:inset-x-6 sm:bottom-16">
-                <div className="h-2 w-full rounded-full bg-white/25">
-                  <div
-                    className="h-2 rounded-full bg-[var(--btn)]"
-                    style={{ width: `${Math.round(stepProgress * 100)}%` }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
         {/* Step header */}
-        <div className="mt-6 flex items-end justify-between">
-          <div className="font-serif text-2xl sm:text-4xl">
-            Step {Math.min(stepIndex + 1, steps.length)}/{steps.length}
+        <div className="mt-6 flex items-end justify-between gap-4">
+          <div className="font-serif text-xl sm:text-4xl">
+            Step {steps.length ? Math.min(stepIndex + 1, steps.length) : 0}/{steps.length}
           </div>
-          <div className="font-serif text-2xl sm:text-4xl">{formatMMSS(stepLeft)} left</div>
+          <div className="font-serif text-xl sm:text-4xl">{formatMMSS(stepLeft)} left</div>
         </div>
 
         {/* Overall progress */}
@@ -348,27 +380,27 @@ export default function WorkoutPlayPage() {
         </div>
 
         {/* Step card */}
-        <div className="mt-6 rounded-2xl bg-[var(--card)] p-5 sm:mt-8 sm:p-8">
-          <div className="font-serif text-2xl leading-snug sm:text-4xl">
+        <div className={["mt-6 rounded-2xl p-5 sm:mt-8 sm:p-8", panel].join(" ")}>
+          <div className="font-serif text-xl leading-snug sm:text-4xl">
             {current?.instruction ?? "—"}
           </div>
 
           {current?.safetyNote ? (
-            <div className="mt-6 rounded-xl bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.08)] p-4 text-[var(--muted)] sm:mt-10 sm:p-5">
+            <div className={["mt-6 rounded-xl p-4 sm:mt-10 sm:p-5", field].join(" ")}>
               <div className="font-serif text-lg sm:text-2xl text-[var(--ink)]">Safety note</div>
-              <div className="mt-2 text-base sm:text-xl">{current.safetyNote}</div>
+              <div className="mt-2 text-base sm:text-xl text-[var(--muted)]">{current.safetyNote}</div>
             </div>
           ) : null}
 
           {current?.easierOption ? (
-            <div className="mt-4 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 sm:mt-8 sm:p-5">
+            <div className={["mt-4 rounded-xl p-4 sm:mt-8 sm:p-5", field].join(" ")}>
               <div className="font-serif text-lg sm:text-2xl">Easier option</div>
               <div className="mt-2 text-base sm:text-xl text-[var(--muted)]">{current.easierOption}</div>
             </div>
           ) : null}
 
           {current?.harderOption ? (
-            <div className="mt-4 rounded-xl bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 sm:p-5">
+            <div className={["mt-4 rounded-xl p-4 sm:p-5", field].join(" ")}>
               <div className="font-serif text-lg sm:text-2xl">Harder option</div>
               <div className="mt-2 text-base sm:text-xl text-[var(--muted)]">{current.harderOption}</div>
             </div>
@@ -376,7 +408,7 @@ export default function WorkoutPlayPage() {
         </div>
 
         {/* Time summary */}
-        <div className="mt-6 text-center text-[var(--muted)]">
+        <div className="mt-6 text-center text-sm sm:text-base text-[var(--muted)]">
           {formatMMSS(overallElapsed)} / {formatMMSS(overallTotal)}
         </div>
 

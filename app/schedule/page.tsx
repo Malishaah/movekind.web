@@ -2,14 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
 
 type ApiScheduleItem = {
   key: string;
@@ -147,6 +140,23 @@ export default function MySchedulePage() {
   const titleFieldRef = useRef<HTMLInputElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
+  // ---- UI tokens (för bättre light mode) ----
+  const panel = "bg-[var(--panel)] border border-[var(--line)]";
+  const field = "bg-[var(--field)] border border-[var(--line)]";
+  const ghostBtn =
+    "hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/25";
+  const ring =
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/25";
+
+  const inputBase = [
+    "mt-2 w-full rounded-2xl px-4 py-3 text-base sm:text-lg",
+    field,
+    "text-[var(--ink)] placeholder:text-[var(--muted)]",
+    "outline-none",
+    // skyddar mot @tailwindcss/forms defaults
+    "border-0 ring-0 focus:ring-2 focus:ring-[var(--accent)]/20",
+  ].join(" ");
+
   const weekStart = useMemo(() => {
     const now = new Date();
     const base = new Date(now);
@@ -249,7 +259,6 @@ export default function MySchedulePage() {
   function closeAddModal() {
     setOpenAdd(false);
     setModalErr(null);
-    // restore focus to opener (WCAG nice-to-have)
     openerRef.current?.focus?.();
     openerRef.current = null;
   }
@@ -289,7 +298,6 @@ export default function MySchedulePage() {
   useEffect(() => {
     if (!openAdd) return;
 
-    // focus first field
     setTimeout(() => titleFieldRef.current?.focus(), 0);
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -389,22 +397,23 @@ export default function MySchedulePage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+            className={["rounded-full p-2", ghostBtn].join(" ")}
             aria-label="Back"
           >
             <ArrowLeft className="h-6 w-6 sm:h-7 sm:w-7" />
           </button>
-          <h1 className="font-serif text-3xl sm:text-4xl">My Schedule</h1>
+          <div>
+            <h1 className="font-serif text-3xl sm:text-4xl">My Schedule</h1>
+            <h2 className="mt-1 text-sm sm:text-base text-[var(--muted)]">
+              Focus, schedule, and move.
+            </h2>
+          </div>
         </div>
 
-        <div className="mt-4 h-px w-full bg-[var(--line)]" />
-           <h2 className="font-serif text-2xl sm:text-2xl">Focus, schedule, and move.</h2>
+        <div className="mt-5 h-px w-full bg-[var(--line)]" />
 
         {/* Week header */}
-        <section
-          aria-label="Week overview"
-          className="mt-6 rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 sm:p-5"
-        >
+        <section aria-label="Week overview" className={["mt-6 rounded-2xl p-4 sm:p-5", panel].join(" ")}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-serif text-2xl sm:text-3xl">Week {weekNumber}</div>
@@ -416,7 +425,7 @@ export default function MySchedulePage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setWeekOffset((x) => x - 1)}
-                className="grid h-11 w-11 place-items-center rounded-full border border-[var(--accent)] bg-transparent hover:bg-black/5 dark:hover:bg-white/10"
+                className={["grid h-11 w-11 place-items-center rounded-full", field, ring].join(" ")}
                 aria-label="Previous week"
               >
                 <ChevronLeft className="h-6 w-6" />
@@ -424,7 +433,7 @@ export default function MySchedulePage() {
 
               <button
                 onClick={() => setWeekOffset((x) => x + 1)}
-                className="grid h-11 w-11 place-items-center rounded-full border border-[var(--accent)] bg-transparent hover:bg-black/5 dark:hover:bg-white/10"
+                className={["grid h-11 w-11 place-items-center rounded-full", field, ring].join(" ")}
                 aria-label="Next week"
               >
                 <ChevronRight className="h-6 w-6" />
@@ -443,8 +452,9 @@ export default function MySchedulePage() {
             {pageErr}
           </div>
         )}
+
         {loading && (
-          <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.35)] dark:bg-[color:rgba(255,255,255,0.06)] p-4 text-sm sm:text-base">
+          <div className={["mt-4 rounded-2xl p-4 text-sm sm:text-base", panel].join(" ")}>
             Loading schedule…
           </div>
         )}
@@ -472,7 +482,7 @@ export default function MySchedulePage() {
                     "rounded-2xl border text-center font-serif transition",
                     active
                       ? "border-transparent text-[var(--btnText)] bg-[var(--accent)]"
-                      : "border-[var(--accent)] bg-transparent text-[var(--ink)] hover:bg-black/5 dark:hover:bg-white/10",
+                      : "border-[var(--line)] bg-[var(--panel)] text-[var(--ink)] hover:opacity-95",
                   ].join(" ")}
                 >
                   <div className="text-2xl md:text-3xl leading-none">{d.label}</div>
@@ -502,7 +512,7 @@ export default function MySchedulePage() {
         </section>
 
         {/* Sessions panel */}
-        <section className="mt-5 rounded-2xl bg-[var(--card)] p-4 sm:p-6" aria-label="Sessions">
+        <section className={["mt-5 rounded-2xl p-4 sm:p-6", panel].join(" ")} aria-label="Sessions">
           {sessionsForSelectedDay.length === 0 ? (
             <>
               <div className="text-center font-serif text-2xl sm:text-3xl">
@@ -511,7 +521,7 @@ export default function MySchedulePage() {
 
               <button
                 onClick={(e) => openAddModal(e.currentTarget)}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-6 py-4 font-serif text-xl hover:opacity-95"
+                className={["mt-5 flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 font-serif text-xl hover:opacity-95", field, ring].join(" ")}
               >
                 <Plus className="h-6 w-6" />
                 Add session
@@ -520,10 +530,7 @@ export default function MySchedulePage() {
           ) : (
             <div className="space-y-3">
               {sessionsForSelectedDay.map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded-2xl bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] p-4"
-                >
+                <div key={s.id} className={["rounded-2xl p-4", field].join(" ")}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-serif text-xl sm:text-2xl truncate">{s.title}</div>
@@ -539,7 +546,7 @@ export default function MySchedulePage() {
                       <button
                         type="button"
                         onClick={() => removeSession(s.id)}
-                        className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+                        className={["rounded-full p-2", ghostBtn].join(" ")}
                         aria-label="Remove session"
                       >
                         <Trash2 className="h-5 w-5" />
@@ -551,7 +558,7 @@ export default function MySchedulePage() {
 
               <button
                 onClick={(e) => openAddModal(e.currentTarget)}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-6 py-4 font-serif text-xl hover:opacity-95"
+                className={["mt-2 flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 font-serif text-xl hover:opacity-95", field, ring].join(" ")}
               >
                 <Plus className="h-6 w-6" />
                 Add session
@@ -565,12 +572,8 @@ export default function MySchedulePage() {
 
       {/* Toast */}
       {toast && (
-        <div
-          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="rounded-full bg-[#9CFF7A] px-6 py-4 font-serif text-xl shadow-sm">
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2" role="status" aria-live="polite">
+          <div className={["rounded-full px-6 py-4 font-serif text-lg shadow-sm", panel].join(" ")}>
             {toast}
           </div>
         </div>
@@ -591,7 +594,11 @@ export default function MySchedulePage() {
             aria-modal="true"
             aria-labelledby={dialogTitleId}
             aria-describedby={`${dialogDescId}${modalErr ? ` ${dialogErrId}` : ""}`}
-            className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-[var(--bg)] text-[var(--ink)] p-5 shadow-lg sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(92vw,560px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:p-6"
+            className={[
+              "absolute inset-x-0 bottom-0 rounded-t-3xl p-5 shadow-lg",
+              "bg-[var(--bg)] text-[var(--ink)]",
+              "sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:w-[min(92vw,560px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:p-6",
+            ].join(" ")}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -606,7 +613,7 @@ export default function MySchedulePage() {
 
               <button
                 type="button"
-                className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10"
+                className={["rounded-full p-2", ghostBtn].join(" ")}
                 onClick={() => !busyAdd && closeAddModal()}
                 aria-label="Close"
               >
@@ -624,7 +631,7 @@ export default function MySchedulePage() {
                   id={titleId}
                   value={titleInput}
                   onChange={(e) => setTitleInput(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                  className={inputBase}
                   placeholder="e.g. Morning Mobility"
                 />
               </div>
@@ -638,7 +645,7 @@ export default function MySchedulePage() {
                   type="time"
                   value={timeInput}
                   onChange={(e) => setTimeInput(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                  className={inputBase}
                 />
               </div>
 
@@ -654,7 +661,13 @@ export default function MySchedulePage() {
                       id={workoutSelectId}
                       value={selectedWorkoutUdi}
                       onChange={(e) => setSelectedWorkoutUdi(e.target.value)}
-                      className="w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                      className={[
+                        "w-full rounded-2xl px-4 py-3 text-base sm:text-lg",
+                        field,
+                        "text-[var(--ink)]",
+                        "outline-none border-0 ring-0 focus:ring-2 focus:ring-[var(--accent)]/20",
+                        "[background-image:none]",
+                      ].join(" ")}
                     >
                       <option value="">No workout (optional)</option>
                       {workouts.map((w) => (
@@ -667,7 +680,7 @@ export default function MySchedulePage() {
                 ) : (
                   <>
                     {workoutsErr && (
-                      <div className="mt-2 rounded-xl bg-black/5 dark:bg-white/10 px-4 py-3 text-sm">
+                      <div className={["mt-2 rounded-xl px-4 py-3 text-sm", panel].join(" ")}>
                         {workoutsErr}
                       </div>
                     )}
@@ -680,7 +693,7 @@ export default function MySchedulePage() {
                         id={workoutManualId}
                         value={manualWorkoutUdi}
                         onChange={(e) => setManualWorkoutUdi(e.target.value)}
-                        className="w-full rounded-2xl border border-[var(--line)] bg-[color:rgba(255,255,255,0.65)] dark:bg-[color:rgba(255,255,255,0.08)] px-4 py-3 text-base sm:text-lg outline-none focus:ring-2 focus:ring-black/20"
+                        className={inputBase}
                         placeholder="Paste workout UDI (umb://document/...)"
                       />
                     </div>
@@ -705,7 +718,7 @@ export default function MySchedulePage() {
                 type="button"
                 onClick={() => closeAddModal()}
                 disabled={busyAdd}
-                className="w-1/3 rounded-full border border-[var(--line)] bg-transparent px-4 py-4 font-serif text-lg hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-60"
+                className={["w-1/3 rounded-full px-4 py-4 font-serif text-lg disabled:opacity-60", field, ring].join(" ")}
               >
                 Cancel
               </button>

@@ -14,7 +14,7 @@ type Session = {
   minutes: number;
   level: "E" | "M" | "A";
   imageUrl: string;
-  imgalt?: string;     
+  imgalt?: string;
   tags: Tag[];
 };
 
@@ -35,7 +35,7 @@ type DeliveryItem = {
       id?: string;
       url: string;
       name?: string;
-      properties?: { alttext?: string } | null; // 👈 optional
+      properties?: { alttext?: string } | null;
     }>;
   } | null;
 };
@@ -87,6 +87,14 @@ export default function HomePage() {
   const searchId = useId();
   const statusId = useId();
 
+  // ---- UI classes (light/dark styrs av CSS-variablerna) ----
+  const pillBase =
+    "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition-colors";
+  const pillInactive =
+    "border-[var(--line)] bg-[var(--card)] text-[var(--ink)] hover:opacity-95";
+  const pillActive =
+    "border-[var(--accent)] bg-[var(--accent)] text-[var(--btnText)]";
+
   function isFav(id: string) {
     return favoriteIds.includes(id);
   }
@@ -122,13 +130,13 @@ export default function HomePage() {
     const res = await fetch("/api/workouts", { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data: DeliveryResponse = await res.json();
+
     const mapped: Session[] = (data.items ?? [])
       .filter((x) => x.contentType === "workout")
       .map((x) => {
         const p = x.properties ?? {};
-        const img = p.image?.[0]?.url ?? "";
+        const imageUrl = p.image?.[0]?.url ?? "";
         const imgalt = p.imgalt ?? "";
-        const imageUrl = img ?? "";
         const title = ((p.title ?? x.id) as string).replaceAll("\\n", "\n");
 
         return {
@@ -191,7 +199,9 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl">
           {/* Header */}
           <header className="flex items-center justify-between">
-            <h1 className="font-serif text-3xl tracking-tight sm:text-4xl">MoveKind</h1>
+            <h1 className="font-serif text-3xl tracking-tight sm:text-4xl">
+              MoveKind
+            </h1>
           </header>
 
           {/* Live region for status messages */}
@@ -201,8 +211,11 @@ export default function HomePage() {
 
           {/* Search */}
           <section className="mt-6 sm:mt-7" aria-label="Search sessions">
-            <div className="flex items-center gap-3 rounded-full bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)] px-5 py-4">
-              <Search className="h-5 w-5 text-[var(--muted)] sm:h-6 sm:w-6" aria-hidden="true" />
+            <div className="flex items-center gap-3 rounded-full border border-[var(--line)] bg-[var(--card)] px-5 py-4">
+              <Search
+                className="h-5 w-5 text-[var(--muted)] sm:h-6 sm:w-6"
+                aria-hidden="true"
+              />
               <label htmlFor={searchId} className="sr-only">
                 Search for sessions (e.g., knees, seated)
               </label>
@@ -219,60 +232,59 @@ export default function HomePage() {
           <div className="mt-8 h-px w-full bg-[var(--line)]" />
 
           {/* Quick links */}
-<section className="mt-8 sm:mt-10" aria-label="Quick links">
-  <h2 className="font-serif text-3xl sm:text-4xl">Quick links</h2>
+          <section className="mt-8 sm:mt-10" aria-label="Quick links">
+            <h2 className="font-serif text-3xl sm:text-4xl">Quick links</h2>
 
-  <div className="mt-5 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
-    {/* Alla */}
-    <button
-      type="button"
-      onClick={() => setActiveTag(null)}
-      aria-pressed={activeTag === null}
-      className={[
-        "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition",
-        activeTag === null
-          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-          : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] hover:bg-[color:rgba(255,255,255,0.75)] dark:hover:bg-[color:rgba(255,255,255,0.10)]",
-      ].join(" ")}
-    >
-      Alla
-    </button>
+            <div className="mt-5 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
+              {/* Alla */}
+              <button
+                type="button"
+                onClick={() => setActiveTag(null)}
+                aria-pressed={activeTag === null}
+                className={[
+                  pillBase,
+                  activeTag === null ? pillActive : pillInactive,
+                ].join(" ")}
+              >
+                Alla
+              </button>
 
-    {/* Befintliga taggar */}
-    {quickLinks.map((t) => {
-      const active = activeTag === t;
-      return (
-        <button
-          key={t}
-          type="button"
-          onClick={() => setActiveTag(active ? null : t)}
-          aria-pressed={active}
-          className={[
-            "rounded-2xl border px-4 py-2 font-serif text-xl sm:px-6 sm:py-3 sm:text-2xl transition",
-            active
-              ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-              : "border-[var(--accent)] bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] hover:bg-[color:rgba(255,255,255,0.75)] dark:hover:bg-[color:rgba(255,255,255,0.10)]",
-          ].join(" ")}
-        >
-          {t}
-        </button>
-      );
-    })}
-  </div>
-</section>
-
+              {/* Taggar */}
+              {quickLinks.map((t) => {
+                const active = activeTag === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setActiveTag(active ? null : t)}
+                    aria-pressed={active}
+                    className={[
+                      pillBase,
+                      active ? pillActive : pillInactive,
+                    ].join(" ")}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
           {/* Recommended */}
           <section className="mt-10 sm:mt-14" aria-label="Recommended sessions">
-            <h2 className="font-serif text-3xl sm:text-4xl">Recommended sessions</h2>
+            <h2 className="font-serif text-3xl sm:text-4xl">
+              Recommended sessions
+            </h2>
 
-            {loading && <p className="mt-4 text-[var(--muted)]">Loading workouts…</p>}
+            {loading && (
+              <p className="mt-4 text-[var(--muted)]">Loading workouts…</p>
+            )}
             {error && <p className="mt-4 text-red-700">Error: {error}</p>}
 
-            {/* Visible toast (also announced via sr-only status above) */}
+            {/* Visible toast */}
             {msg && (
               <div
-                className="mt-4 rounded-xl bg-[color:rgba(156,255,122,0.75)] dark:bg-[color:rgba(156,255,122,0.22)] px-5 py-3 font-serif text-xl sm:text-2xl"
+                className="mt-4 rounded-xl bg-[var(--card)] px-5 py-3 font-serif text-xl sm:text-2xl"
                 role="status"
                 aria-live="polite"
               >
@@ -285,78 +297,84 @@ export default function HomePage() {
                 const fav = isFav(s.id);
                 const titleOneLine = oneLine(s.title);
 
-return (
-  <article
-    key={s.id}
-    className="overflow-hidden rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)]"
-  >
-    <div className="relative">
-      {/* EN länk runt bild + text */}
-      <Link
-        href={`/workouts/${s.slug}`}
-        className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-        aria-label={`Open ${titleOneLine}`}
-      >
-        {/* Image */}
-        <div className="aspect-[4/3] w-full bg-black/5 dark:bg-white/5">
-          {s.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={s.imageUrl}
-              alt={s.imgalt ?? s.title}
-              className="h-full w-full object-cover transition group-hover:scale-[1.01]"
-              loading="lazy"
-            />
-          ) : null}
-        </div>
+                return (
+                  <article
+                    key={s.id}
+                    className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)]"
+                  >
+                    <div className="relative">
+                      {/* Link runt bild + text */}
+                      <Link
+                        href={`/workouts/${s.slug}`}
+                        className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                        aria-label={`Open ${titleOneLine}`}
+                      >
+                        {/* Image */}
+                        <div className="aspect-[4/3] w-full bg-black/5 dark:bg-white/5">
+                          {s.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s.imageUrl}
+                              alt={s.imgalt ?? s.title}
+                              className="h-full w-full object-cover transition group-hover:scale-[1.01]"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </div>
 
-        {/* Text */}
-        <div className="p-5">
-          <h3
-            className={[
-              "font-serif text-2xl leading-snug sm:text-3xl group-hover:underline",
-              "[display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical] overflow-hidden",
-            ].join(" ")}
-          >
-            {s.title}
-          </h3>
+                        {/* Text */}
+                        <div className="p-5">
+                          <h3
+                            className={[
+                              "font-serif text-2xl leading-snug sm:text-3xl group-hover:underline",
+                              "[display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical] overflow-hidden",
+                            ].join(" ")}
+                          >
+                            {s.title}
+                          </h3>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-base text-[var(--muted)] sm:text-lg">
-            <span>{s.minutes} min</span>
-            <span aria-hidden="true">·</span>
-            <span>{s.level}</span>
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-base text-[var(--muted)] sm:text-lg">
+                            <span>{s.minutes} min</span>
+                            <span aria-hidden="true">·</span>
+                            <span>{s.level}</span>
 
-            {s.tags.slice(0, 2).map((t) => (
-              <span
-                key={t}
-                className="ml-2 rounded-full border border-[var(--accent)]/40 bg-[color:rgba(255,255,255,0.55)] dark:bg-[color:rgba(255,255,255,0.06)] px-3 py-1 text-sm text-[var(--ink)]"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-      </Link>
+                            {s.tags.slice(0, 2).map((t) => (
+                              <span
+                                key={t}
+                                className="ml-2 rounded-full border border-[var(--line)] bg-[var(--card)] px-3 py-1 text-sm text-[var(--ink)]"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </Link>
 
-      {/* ❤️ Favorite overlay – separat knapp, inte inuti länken */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleFavorite(s.id, titleOneLine);
-        }}
-        className="absolute right-3 top-3 rounded-full bg-[color:rgba(255,255,255,0.80)] p-3 shadow-sm backdrop-blur hover:bg-white dark:bg-[color:rgba(0,0,0,0.35)] dark:hover:bg-[color:rgba(0,0,0,0.45)]"
-        aria-label={fav ? `Remove ${titleOneLine} from favorites` : `Add ${titleOneLine} to favorites`}
-        aria-pressed={fav}
-        title={fav ? "Remove favorite" : "Add favorite"}
-      >
-        <Heart className="h-6 w-6" fill={fav ? "currentColor" : "none"} />
-      </button>
-    </div>
-  </article>
-);
-
+                      {/* Favorite overlay */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleFavorite(s.id, titleOneLine);
+                        }}
+                        className="absolute right-3 top-3 rounded-full border border-[var(--line)] bg-[var(--card)] p-3 shadow-sm backdrop-blur hover:opacity-95"
+                        aria-label={
+                          fav
+                            ? `Remove ${titleOneLine} from favorites`
+                            : `Add ${titleOneLine} to favorites`
+                        }
+                        aria-pressed={fav}
+                        title={fav ? "Remove favorite" : "Add favorite"}
+                      >
+                        <Heart
+                          className="h-6 w-6"
+                          fill={fav ? "currentColor" : "none"}
+                        />
+                      </button>
+                    </div>
+                  </article>
+                );
               })}
             </div>
           </section>

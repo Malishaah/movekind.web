@@ -79,10 +79,10 @@ Accessible workout web app with an **Umbraco headless backend** and a **modern N
 ### Versionshantering (VG)
 - [ ] Arbetar med **feature branches**
 - [ ] Använder **pull requests** innan merge till main
-- [ ] Har **tydliga och informativa commit-meddelanden**
+- [*] Har **tydliga och informativa commit-meddelanden**
 
 ### Deploy (VG)
-- [ ] Har **automatiserat bygge och deploy (CI/CD)**
+- [*] Har **automatiserat bygge och deploy (CI/CD)**
 
 ### Slutrapport (3–6 sidor)
 - [*] Djupgående analys av hela arbetsprocessen

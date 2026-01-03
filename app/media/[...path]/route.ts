@@ -3,7 +3,7 @@ import https from "https";
 
 export const runtime = "nodejs"; // viktigt för streaming
 
-const BASE = (process.env.NEXT_PUBLIC_UMBRACO_URL || "").replace(/\/$/, "");
+const BASE = (process.env.NEXT_PUBLIC_UMBRACO_URL || "https://movekindb.bovision.se").replace(/\/$/, "");
 
 const httpsAgent =
   process.env.NODE_ENV !== "production"

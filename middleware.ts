@@ -39,9 +39,9 @@ export async function middleware(req: NextRequest) {
     // ignorera – behandla som ej inloggad
   }
 
-  // 5) Inte inloggad → skicka till /auth
+  // 5) Inte inloggad → skicka till /login
   const url = req.nextUrl.clone();
-  url.pathname = "/auth";
+  url.pathname = "/login";
   url.searchParams.set("next", pathname);
   return NextResponse.redirect(url);
 }

@@ -2,11 +2,13 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'localhost', port: '8443', pathname: '/media/**' },
-      // lägg bara till http-raden om du faktiskt servar media över http också
-      // { protocol: 'http', hostname: 'localhost', port: '8443', pathname: '/media/**' }
+      {
+        protocol: "https",
+        hostname: "movekindb.bovision.se",
+        pathname: "/media/**",
+      },
     ],
-    // DEV-workaround om cert strular (slår av optimering):
+    // Om du vill slippa image-opt i dev:
     // unoptimized: true,
   },
 };
