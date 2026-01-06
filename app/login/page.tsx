@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LogIn } from "lucide-react";
 import LoginForm from "../(components)/LoginForm";
 
-const HERO = "/media/dxkejxcv/hero-auth.jpg";
+const HERO = "/media/tpanosg4/chatgpt-image-4-jan-2026-01_22_13.png";
 
 export default function LoginPage() {
   return (

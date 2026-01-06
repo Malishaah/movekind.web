@@ -256,7 +256,7 @@ export default function FavoritesPage() {
         <div className="mt-5 space-y-6">
           {filtered.length === 0 ? (
             <div className={`rounded-3xl ${card} ${line} border p-6`}>
-              <div className="font-serif text-2xl sm:text-3xl">No favorites yet.</div>
+              <h2 className="font-serif text-2xl sm:text-3xl">No favorites yet.</h2>
               <div className={`mt-2 text-base sm:text-lg ${muted}`}>
                 Save a session and it will appear here.
               </div>

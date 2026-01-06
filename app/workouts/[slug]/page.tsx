@@ -275,12 +275,14 @@ export default function WorkoutDetailPage() {
                 className="rounded-2xl border border-[var(--accent)] bg-[color:rgba(255,255,255,0.45)] dark:bg-[color:rgba(255,255,255,0.06)] p-6"
               >
                 <div className="flex items-start gap-4">
-                  <div
-                    className="grid h-9 w-9 place-items-center rounded-full bg-[color:rgba(191,226,234,0.9)] dark:bg-[color:rgba(191,226,234,0.18)] font-serif text-lg"
-                    aria-label={`Step ${idx + 1}`}
-                  >
-                    {idx + 1}
-                  </div>
+<div
+  className="grid h-9 w-9 place-items-center rounded-full
+             bg-[color:rgba(191,226,234,0.9)] dark:bg-[color:rgba(191,226,234,0.18)]
+             text-zinc-900
+             font-serif text-lg"
+>
+  {idx + 1}
+</div>
 
                   <div className="flex-1">
                     <p className="font-serif text-2xl leading-snug">{s.instruction}</p>

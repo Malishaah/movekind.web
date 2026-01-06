@@ -200,7 +200,7 @@ export default function HomePage() {
           {/* Header */}
           <header className="flex items-center justify-between">
             <h1 className="font-serif text-3xl tracking-tight sm:text-4xl">
-              MoveKind
+              Move Well. Feel Better.
             </h1>
           </header>
 
@@ -389,9 +389,9 @@ export default function HomePage() {
                   Start with today’s recommended session:
                 </h2>
 
-                <p className="mt-2 text-xl font-semibold text-[var(--muted)] sm:text-2xl">
+                <h2 className="mt-2 text-xl font-semibold text-[var(--muted)] sm:text-2xl">
                   {oneLine(todays.title)} ({todays.minutes} min)
-                </p>
+                </h2>
 
                 <Link
                   href={`/workouts/${todays.id}/play`}
